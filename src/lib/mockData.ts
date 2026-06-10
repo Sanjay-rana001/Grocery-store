@@ -4,7 +4,7 @@ export const mockProducts: Product[] = [
   {
     id: '1',
     name: 'Gala Apples',
-    category: 'produce',
+    category: 'Products',
     subcategory: 'Fruits',
     price: 5.50,
     originalPrice: 6.80,
@@ -32,7 +32,7 @@ export const mockProducts: Product[] = [
   {
     id: '2',
     name: 'Hass Avocado',
-    category: 'produce',
+    category: 'Products',
     subcategory: 'Fruits',
     price: 2.50,
     description: 'Creamy, rich Hass avocados from the sunny Bay of Plenty. Features standard dark, pebbly skin when ripe and a buttery, nutty green interior. Ideal for smash-on-toast, home-made guacamole, or as a rich addition to healthy smoothies.',
@@ -58,7 +58,7 @@ export const mockProducts: Product[] = [
   {
     id: '3',
     name: 'Bunch Carrots',
-    category: 'produce',
+    category: 'Products',
     subcategory: 'Vegetables',
     price: 4.00,
     description: 'Freshly harvested orange carrots with vibrant green leafy tops still attached. Sourced from the volcanic soils of Pukekohe. Crispy, naturally sweet, and perfect for roasting whole, juicing, or enjoying raw with hummus.',
@@ -83,7 +83,7 @@ export const mockProducts: Product[] = [
   {
     id: '4',
     name: 'Head Broccoli',
-    category: 'produce',
+    category: 'Products',
     subcategory: 'Vegetables',
     price: 3.50,
     originalPrice: 4.20,
@@ -109,7 +109,7 @@ export const mockProducts: Product[] = [
   {
     id: '5',
     name: 'Gold Kumara',
-    category: 'produce',
+    category: 'Products',
     subcategory: 'Vegetables',
     price: 7.99,
     description: 'Golden-skinned New Zealand Kumara (sweet potato) with sweet, creamy yellow flesh. Grown in the Northland region, known for its warm climate and sandy soils. Exceptional when roasted, mashed, or cut into crispy kumara fries.',
@@ -134,7 +134,7 @@ export const mockProducts: Product[] = [
   {
     id: '6',
     name: 'Baby Spinach',
-    category: 'produce',
+    category: 'Products',
     subcategory: 'Vegetables',
     price: 4.50,
     originalPrice: 5.20,
@@ -481,7 +481,7 @@ export const mockProducts: Product[] = [
   {
     id: '20',
     name: 'Organic Kiwifruit',
-    category: 'produce',
+    category: 'Products',
     subcategory: 'Fruits',
     price: 6.90,
     originalPrice: 8.50,

@@ -92,7 +92,7 @@ export default function Navbar() {
               <span className="material-symbols-outlined text-outline">search</span>
               <input
                 type="text"
-                placeholder="Search fresh produce..."
+                placeholder="Search fresh Products..."
                 value={searchVal}
                 onChange={(e) => setSearchVal(e.target.value)}
                 className="bg-transparent border-none focus:outline-none focus:ring-0 text-label-md font-label-md w-48 ml-2 text-primary"

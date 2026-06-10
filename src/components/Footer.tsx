@@ -18,7 +18,7 @@ export default function Footer() {
             </h2>
           </div>
           <p className="text-white/70 text-sm leading-relaxed">
-            Sourcing the finest organic produce directly from New Zealand&apos;s best local farmers. Quality you can taste, sustainability you can trust.
+            Sourcing the finest organic Products directly from New Zealand&apos;s best local farmers. Quality you can taste, sustainability you can trust.
           </p>
         </div>
 
@@ -26,7 +26,7 @@ export default function Footer() {
         <div>
           <h4 className="text-white font-display font-semibold text-lg mb-5">Shop</h4>
           <ul className="space-y-3">
-            <li><Link href="/?category=produce" className="text-white/70 hover:text-secondary-fixed transition-colors text-sm">Fruit &amp; Veg</Link></li>
+            <li><Link href="/?category=Products" className="text-white/70 hover:text-secondary-fixed transition-colors text-sm">Fruit &amp; Veg</Link></li>
             <li><Link href="/?category=meat" className="text-white/70 hover:text-secondary-fixed transition-colors text-sm">Meat &amp; Poultry</Link></li>
             <li><Link href="/?category=dairy" className="text-white/70 hover:text-secondary-fixed transition-colors text-sm">Dairy</Link></li>
             <li><Link href="/?category=pantry" className="text-white/70 hover:text-secondary-fixed transition-colors text-sm">Organic Pantry</Link></li>

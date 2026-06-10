@@ -9,7 +9,7 @@ export interface Review {
 export interface Product {
   id: string;
   name: string;
-  category: 'produce' | 'meat' | 'dairy' | 'pantry' | 'bakery';
+  category: 'Products' | 'meat' | 'dairy' | 'pantry' | 'bakery';
   subcategory: string;
   price: number;
   originalPrice?: number; // For discount badges

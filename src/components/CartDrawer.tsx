@@ -69,7 +69,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   <div>
                     <h4 className="font-display text-headline-md text-primary">Your basket is empty</h4>
                     <p className="text-body-md text-outline mt-2 max-w-xs mx-auto">
-                      Fill it with fresh, organic produce sourced directly from local New Zealand farmers.
+                      Fill it with fresh, organic Products sourced directly from local New Zealand farmers.
                     </p>
                   </div>
                   <button

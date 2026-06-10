@@ -66,14 +66,14 @@ export default function WishlistDrawer({ isOpen, onClose }: WishlistDrawerProps)
                   <div>
                     <h4 className="font-display text-headline-md text-primary">Your wishlist is empty</h4>
                     <p className="text-body-md text-outline mt-2 max-w-xs mx-auto">
-                      Save your favorite organic cuts, pantry items, and fresh produce to purchase later.
+                      Save your favorite organic cuts, pantry items, and fresh Products to purchase later.
                     </p>
                   </div>
                   <button
                     onClick={onClose}
                     className="bg-primary text-white font-label-md text-label-md px-6 py-3 rounded-xl hover:bg-secondary transition-colors shadow-md active:scale-95 duration-150"
                   >
-                    Browse Produce
+                    Browse Products
                   </button>
                 </div>
               ) : (

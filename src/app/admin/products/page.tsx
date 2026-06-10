@@ -13,7 +13,7 @@ import Image from 'next/image';
 // Validation Schema for Product Editor
 const productSchema = zod.object({
   name: zod.string().min(1, 'Product name is required').min(2, 'Name must be at least 2 characters'),
-  category: zod.enum(['produce', 'meat', 'dairy', 'pantry', 'bakery']),
+  category: zod.enum(['Products', 'meat', 'dairy', 'pantry', 'bakery']),
   subcategory: zod.string().min(1, 'Subcategory is required'),
   price: zod.coerce.number().min(0.01, 'Price must be greater than $0'),
   originalPrice: zod.coerce.number().min(0.01).optional(),
@@ -62,7 +62,7 @@ export default function AdminProductsPage() {
     setEditingProduct(null);
     reset({
       name: '',
-      category: 'produce',
+      category: 'Products',
       subcategory: 'Vegetables',
       price: 0,
       originalPrice: undefined,
@@ -381,7 +381,7 @@ export default function AdminProductsPage() {
                       {...register('category')}
                       className="w-full text-xs p-3 bg-background rounded-xl border border-outline-variant/30 text-primary font-bold cursor-pointer"
                     >
-                      <option value="produce">Produce</option>
+                      <option value="Products">Products</option>
                       <option value="meat">Meat & Poultry</option>
                       <option value="dairy">Dairy</option>
                       <option value="pantry">Pantry</option>

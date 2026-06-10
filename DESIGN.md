@@ -119,7 +119,7 @@ spacing:
 
 This design system is built to bridge the gap between high-end organic retail and modern digital efficiency. It targets a discerning New Zealand demographic that values quality, sustainability, and frictionless technology. 
 
-The aesthetic is **Modern SaaS-inspired Minimalism** with a **Tactile** twist. It emphasizes clarity and "breathability" through generous whitespace, evoking the freshness of locally sourced produce. The emotional response is one of calm reliability—like walking into a high-end, well-organized boutique supermarket where every item has its place. 
+The aesthetic is **Modern SaaS-inspired Minimalism** with a **Tactile** twist. It emphasizes clarity and "breathability" through generous whitespace, evoking the freshness of locally sourced Products. The emotional response is one of calm reliability—like walking into a high-end, well-organized boutique supermarket where every item has its place. 
 
 Key visual hallmarks include:
 - **Airy Composition:** Avoiding clutter to allow high-resolution food photography to take center stage.

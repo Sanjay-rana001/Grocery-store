@@ -527,7 +527,7 @@ export const getDashboardStats = (): DashboardStats => {
 
   // Sales by Category
   const catSalesMap: { [cat: string]: number } = {
-    produce: 0,
+    Products: 0,
     meat: 0,
     dairy: 0,
     pantry: 0,

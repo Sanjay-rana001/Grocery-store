@@ -64,7 +64,7 @@ function ShopContent() {
   // Unique list of categories
   const categories = [
     { id: 'all', label: 'All' },
-    { id: 'produce', label: 'Produce' },
+    { id: 'Products', label: 'Products' },
     { id: 'meat', label: 'Meat & Poultry' },
     { id: 'dairy', label: 'Dairy' },
     { id: 'pantry', label: 'Pantry' },
@@ -354,7 +354,7 @@ function ShopContent() {
                       ? `Search: "${searchParam}"`
                       : filterParam
                       ? `${filterParam} organic goods`
-                      : 'Fresh Produce & Groceries'
+                      : 'Fresh Products & Groceries'
                     : `${categoryParam} selection`}
                 </span>
                 <p className="text-xs font-semibold text-outline mt-0.5">

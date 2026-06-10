@@ -17,11 +17,11 @@ const lexend = Lexend({
 
 export const metadata: Metadata = {
   title: "FreshMart NZ | Premium Organic Grocery Delivery",
-  description: "New Zealand's premium organic grocery marketplace. Fresh produce, grass-fed meats, artisan dairy, and pantry essentials sourced directly from local NZ farmers. Fast delivery across Auckland, Wellington, Canterbury, and more.",
-  keywords: ["organic grocery", "NZ produce", "fresh delivery", "New Zealand", "FreshMart", "sustainable", "grass-fed", "local farmers"],
+  description: "New Zealand's premium organic grocery marketplace. Fresh Products, grass-fed meats, artisan dairy, and pantry essentials sourced directly from local NZ farmers. Fast delivery across Auckland, Wellington, Canterbury, and more.",
+  keywords: ["organic grocery", "NZ Products", "fresh delivery", "New Zealand", "FreshMart", "sustainable", "grass-fed", "local farmers"],
   openGraph: {
     title: "FreshMart NZ | Premium Organic Grocery Delivery",
-    description: "Fresh, organic produce sourced directly from New Zealand's best local farmers.",
+    description: "Fresh, organic Products sourced directly from New Zealand's best local farmers.",
     type: "website",
     locale: "en_NZ",
     siteName: "FreshMart NZ",
