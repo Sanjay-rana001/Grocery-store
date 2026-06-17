@@ -97,6 +97,7 @@ export default function AdminOrdersPage() {
       city: fCity,
       postalCode: fPostal,
       phone: fPhone,
+      country: 'New Zealand',
     };
 
     if (editingOrder) {
@@ -112,15 +113,17 @@ export default function AdminOrdersPage() {
       });
     } else {
       await createOrder({
-        userId: 'manual_admin_creation',
         userName: fName,
         userEmail: fEmail,
         items: fItems,
         subtotal,
+        tax: subtotal * 0.15,
+        shippingFee: 0,
         discount: 0,
-        total: subtotal,
+        total: subtotal + (subtotal * 0.15),
         address,
         deliverySlot: { date: new Date().toISOString().split('T')[0], time: 'As soon as possible' },
+        paymentMethod: 'cod',
       });
     }
 
