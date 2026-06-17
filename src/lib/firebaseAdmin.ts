@@ -5,10 +5,18 @@ import { getFirestore } from 'firebase-admin/firestore';
 export const getAdminApp = () => {
   if (!getApps().length) {
     try {
-      const fs = require('fs');
-      const path = require('path');
-      const serviceAccountPath = path.resolve(process.cwd(), 'service-account.json');
-      const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+      let serviceAccount;
+      
+      if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+        // Vercel deployment: read from environment variable
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      } else {
+        // Local development: read from file
+        const fs = require('fs');
+        const path = require('path');
+        const serviceAccountPath = path.resolve(process.cwd(), 'service-account.json');
+        serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+      }
       
       initializeApp({
         credential: cert(serviceAccount)
