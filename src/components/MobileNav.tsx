@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUiStore } from '../store/useUiStore';
 import { useCartStore } from '../store/useCartStore';
@@ -12,6 +12,11 @@ export default function MobileNav() {
   const { setCartOpen } = useUiStore();
   const { getTotals } = useCartStore();
   const { isAuthenticated, user } = useAuthStore();
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   const { itemsCount } = getTotals();
 
@@ -54,7 +59,7 @@ export default function MobileNav() {
       >
         <span className="material-symbols-outlined">shopping_basket</span>
         <span className="text-[10px] mt-0.5 font-sans">Cart</span>
-        {itemsCount > 0 && (
+        {mounted && itemsCount > 0 && (
           <span className="absolute -top-1 right-2 bg-secondary text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
             {itemsCount}
           </span>
@@ -68,7 +73,7 @@ export default function MobileNav() {
       >
         <span className="material-symbols-outlined font-normal">person</span>
         <span className="text-[10px] mt-0.5 font-sans">
-          {isAuthenticated && user ? user.name.split(' ')[0] : 'Profile'}
+          {!mounted ? 'Profile' : (isAuthenticated && user ? (user.name?.split(' ')[0] || 'User') : 'Profile')}
         </span>
       </button>
     </nav>

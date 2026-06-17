@@ -11,6 +11,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const { user, isAuthenticated, isLoading } = useAuthStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Protected Route Guard check
   useEffect(() => {
@@ -23,7 +28,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [user, isAuthenticated, isLoading, router]);
 
-  if (isLoading || !isAuthenticated || !user || user.role !== 'admin') {
+  if (!mounted || isLoading || !isAuthenticated || !user || user.role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-primary text-white">
         <div className="flex flex-col items-center gap-4">

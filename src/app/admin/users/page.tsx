@@ -5,16 +5,18 @@ import { useAdminStore } from '@/store/useAdminStore';
 import { saveUser } from '@/lib/db';
 import { User } from '@/lib/types';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useState } from 'react';
 
 export default function AdminUsersPage() {
   const { users, loadAllData, isLoading } = useAdminStore();
   const currentUser = useAuthStore(state => state.user);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     loadAllData();
   }, [loadAllData]);
 
-  const handleRoleToggle = (user: User) => {
+  const handleRoleToggle = async (user: User) => {
     // Prevent self-demotion
     if (currentUser && currentUser.email === user.email) {
       alert('Security Protocol: You cannot change your own admin privileges.');
@@ -26,8 +28,30 @@ export default function AdminUsersPage() {
       role: user.role === 'admin' ? 'customer' : 'admin'
     };
 
-    saveUser(updatedUser);
-    loadAllData(); // Refresh admin store users list
+    await saveUser(updatedUser);
+    await loadAllData(); // Refresh admin store users list
+  };
+
+  const handleSyncAllUsers = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await fetch('/api/admin/sync-users', { method: 'POST' });
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.error);
+
+      await loadAllData();
+      if (data.count > 0) {
+        alert(`Successfully synced ${data.count} new users from Firebase Auth!`);
+      } else {
+        alert('All users are already perfectly synced.');
+      }
+    } catch (error: any) {
+      console.error(error);
+      alert('Failed to sync users: ' + error.message);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   if (isLoading) {
@@ -43,11 +67,23 @@ export default function AdminUsersPage() {
 
   return (
     <div className="bg-white rounded-[32px] p-6 shadow-[0px_4px_24px_rgba(0,0,0,0.02)] border border-outline-variant/10">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
           <h3 className="font-display font-bold text-base sm:text-lg text-primary">Registered Accounts</h3>
           <p className="text-xs text-outline font-medium">Verify client shoppers and adjust administrator privileges</p>
         </div>
+
+        {/* Sync All Missing Users */}
+        <button
+          onClick={handleSyncAllUsers}
+          disabled={isSyncing}
+          className="bg-secondary text-white font-extrabold text-[11px] px-5 py-3 rounded-xl shadow-md active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
+        >
+          <span className={`material-symbols-outlined text-[18px] ${isSyncing ? 'animate-spin' : ''}`}>
+            sync
+          </span>
+          {isSyncing ? 'Syncing Firebase Auth...' : 'Auto-Sync All Firebase Users'}
+        </button>
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-outline-variant/10">
@@ -71,10 +107,10 @@ export default function AdminUsersPage() {
                   {/* Account Name */}
                   <td className="p-4 font-extrabold text-sm flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-surface-container text-on-surface-variant flex items-center justify-center font-bold text-[11px] uppercase border border-outline-variant/10">
-                      {u.name.slice(0, 2)}
+                      {(u.name || u.email || 'U').slice(0, 2)}
                     </div>
                     <div>
-                      <p>{u.name}</p>
+                      <p>{u.name || 'Unknown User'}</p>
                       <p className="text-[10px] text-outline font-semibold">UID: {u.id}</p>
                     </div>
                   </td>

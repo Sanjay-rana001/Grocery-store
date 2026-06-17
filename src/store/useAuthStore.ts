@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { User, Address } from '../lib/types';
-import { getUserByEmail, saveUser } from '../lib/db';
+import { auth, googleProvider, appleProvider } from '../lib/firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signOut, sendEmailVerification } from 'firebase/auth';
 
 interface AuthState {
   user: User | null;
@@ -10,8 +11,10 @@ interface AuthState {
   
   login: (email: string, password: string) => Promise<boolean>;
   signup: (name: string, email: string, password: string) => Promise<boolean>;
+  googleLogin: () => Promise<boolean>;
+  appleLogin: () => Promise<boolean>;
   logout: () => void;
-  updateAddress: (address: Address) => void;
+  updateAddress: (address: Address) => Promise<void>;
   clearError: () => void;
 }
 
@@ -36,32 +39,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email, password) => {
     set({ isLoading: true, error: null });
     try {
-      // Simulate API lag
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      const dbUser = getUserByEmail(email);
-      if (!dbUser || dbUser.password !== password) {
-        set({ error: 'Invalid email or password.', isLoading: false });
+      // Admin bypass: allow the admin email to bypass email verification for testing purposes
+      if (!userCredential.user.emailVerified && userCredential.user.email !== 'sanjayranatanabana@gmail.com') {
+        await signOut(auth);
+        set({ error: 'Please verify your email address. Check your inbox for the verification link.', isLoading: false });
         return false;
       }
+      
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
 
-      // Safe copy without password
-      const sessionUser: User = {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        role: dbUser.role,
-        address: dbUser.address
-      };
-
-      if (isBrowser) {
-        localStorage.setItem('freshmart_session', JSON.stringify(sessionUser));
+      if (!res.ok) {
+        set({ error: 'User profile not found.', isLoading: false });
+        return false;
       }
-
+      
+      const sessionUser = await res.json();
+      if (isBrowser) localStorage.setItem('freshmart_session', JSON.stringify(sessionUser));
       set({ user: sessionUser, isAuthenticated: true, isLoading: false });
       return true;
-    } catch (err) {
-      set({ error: 'An error occurred during login.', isLoading: false });
+    } catch (err: any) {
+      let friendlyError = 'An error occurred during login.';
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        friendlyError = 'Invalid email or password. Please check your credentials or create an account.';
+      } else if (err.code === 'auth/too-many-requests') {
+        friendlyError = 'Too many failed login attempts. Please try again later.';
+      }
+      set({ error: friendlyError, isLoading: false });
       return false;
     }
   },
@@ -69,72 +78,113 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signup: async (name, email, password) => {
     set({ isLoading: true, error: null });
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      const existingUser = getUserByEmail(email);
-      if (existingUser) {
-        set({ error: 'An account with this email already exists.', isLoading: false });
+      // Send the verification email instantly with a redirect back to the login page
+      const actionCodeSettings = {
+        url: `${window.location.origin}/auth/login?verified=true`,
+        handleCodeInApp: false,
+      };
+      await sendEmailVerification(userCredential.user, actionCodeSettings);
+      
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, uid: userCredential.user.uid }),
+      });
+
+      if (!res.ok) {
+        set({ error: 'An error occurred during profile creation.', isLoading: false });
         return false;
       }
 
-      const newUser: User = {
-        id: `u-${Date.now()}`,
-        name,
-        email,
-        role: 'customer', // Default role
-        password,
-        address: undefined
-      };
+      // Do NOT log the user in locally yet. Sign them out so they must verify and log in.
+      await signOut(auth);
 
-      saveUser(newUser);
-
-      // Log in automatically after sign up
-      const sessionUser: User = {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role
-      };
-
-      if (isBrowser) {
-        localStorage.setItem('freshmart_session', JSON.stringify(sessionUser));
-      }
-
-      set({ user: sessionUser, isAuthenticated: true, isLoading: false });
+      set({ isLoading: false });
       return true;
-    } catch (err) {
-      set({ error: 'An error occurred during signup.', isLoading: false });
+    } catch (err: any) {
+      set({ error: err.message || 'An error occurred during signup.', isLoading: false });
       return false;
     }
   },
 
-  logout: () => {
-    if (isBrowser) {
-      localStorage.removeItem('freshmart_session');
+  googleLogin: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      const { user } = userCredential;
+      
+      let res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email }),
+      });
+
+      if (!res.ok) {
+        res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: user.displayName || 'Google User', email: user.email, uid: user.uid }),
+        });
+      }
+
+      const sessionUser = await res.json();
+      if (isBrowser) localStorage.setItem('freshmart_session', JSON.stringify(sessionUser));
+      set({ user: sessionUser, isAuthenticated: true, isLoading: false });
+      return true;
+    } catch (err: any) {
+      set({ error: err.message || 'Google sign-in failed.', isLoading: false });
+      return false;
     }
+  },
+
+  appleLogin: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const userCredential = await signInWithPopup(auth, appleProvider);
+      const { user } = userCredential;
+      
+      let res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email }),
+      });
+
+      if (!res.ok) {
+        res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: user.displayName || 'Apple User', email: user.email, uid: user.uid }),
+        });
+      }
+
+      const sessionUser = await res.json();
+      if (isBrowser) localStorage.setItem('freshmart_session', JSON.stringify(sessionUser));
+      set({ user: sessionUser, isAuthenticated: true, isLoading: false });
+      return true;
+    } catch (err: any) {
+      set({ error: err.message || 'Apple sign-in failed.', isLoading: false });
+      return false;
+    }
+  },
+
+  logout: async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {}
+    if (isBrowser) localStorage.removeItem('freshmart_session');
     set({ user: null, isAuthenticated: false, error: null });
   },
 
-  updateAddress: (address) => {
+  updateAddress: async (address) => {
     const { user } = get();
     if (!user) return;
-
     const updatedUser = { ...user, address };
+    if (isBrowser) localStorage.setItem('freshmart_session', JSON.stringify(updatedUser));
     
-    // Save to LocalStorage session
-    if (isBrowser) {
-      localStorage.setItem('freshmart_session', JSON.stringify(updatedUser));
-    }
-
-    // Save to user DB
-    saveUser({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      address
-    });
-
+    // In a full implementation, you would write a separate API route to handle address updates
+    // For now we just update the client state as before.
     set({ user: updatedUser });
   },
 

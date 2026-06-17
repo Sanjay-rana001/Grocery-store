@@ -39,10 +39,10 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="product-card-hover group relative bg-white rounded-[24px] shadow-[0px_4px_20px_rgba(0,0,0,0.04)] overflow-hidden border border-outline-variant/10"
+      className="product-card-hover group relative bg-white rounded-xl lg:rounded-[24px] shadow-[0px_4px_20px_rgba(0,0,0,0.04)] overflow-hidden border border-outline-variant/10 flex flex-col"
     >
       {/* Image area */}
-      <div className="relative h-56 sm:h-64 bg-surface-container-low overflow-hidden">
+      <div className="relative h-24 sm:h-40 lg:h-56 bg-surface-container-low overflow-hidden shrink-0">
         <Image
           src={product.images[0]}
           alt={product.name}
@@ -63,24 +63,24 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
         </div>
 
         {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+        <div className="absolute top-1.5 left-1.5 lg:top-3 lg:left-3 flex flex-col gap-1 lg:gap-1.5">
           {product.organic && (
-            <span className="bg-secondary-container text-on-secondary-container text-[11px] font-bold px-2.5 py-1 rounded-full">
+            <span className="bg-secondary-container text-on-secondary-container text-[8px] lg:text-[11px] font-bold px-1.5 py-0.5 lg:px-2.5 lg:py-1 rounded-full">
               Organic
             </span>
           )}
           {product.bestSeller && (
-            <span className="bg-tertiary-fixed text-on-tertiary-fixed text-[11px] font-bold px-2.5 py-1 rounded-full">
+            <span className="bg-tertiary-fixed text-on-tertiary-fixed text-[8px] lg:text-[11px] font-bold px-1.5 py-0.5 lg:px-2.5 lg:py-1 rounded-full">
               Best Seller
             </span>
           )}
           {product.seasonal && (
-            <span className="bg-primary-fixed text-on-primary-fixed text-[11px] font-bold px-2.5 py-1 rounded-full">
+            <span className="bg-primary-fixed text-on-primary-fixed text-[8px] lg:text-[11px] font-bold px-1.5 py-0.5 lg:px-2.5 lg:py-1 rounded-full">
               Seasonal
             </span>
           )}
           {discountPercent > 0 && (
-            <span className="bg-error text-white text-[11px] font-bold px-2.5 py-1 rounded-full">
+            <span className="bg-error text-white text-[8px] lg:text-[11px] font-bold px-1.5 py-0.5 lg:px-2.5 lg:py-1 rounded-full">
               -{discountPercent}%
             </span>
           )}
@@ -89,7 +89,7 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
         {/* Out of Stock overlay */}
         {product.stock === 0 && (
           <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-            <span className="bg-on-surface text-white px-4 py-2 rounded-full text-sm font-bold">
+            <span className="bg-on-surface text-white px-2 py-1 lg:px-4 lg:py-2 rounded-full text-[10px] lg:text-sm font-bold">
               Out of Stock
             </span>
           </div>
@@ -104,10 +104,10 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
       </div>
 
       {/* Content area */}
-      <div className="p-5">
-        <div className="flex justify-between items-start mb-1.5">
-          <a href={`/product/${product.id}`} className="hover:text-secondary transition-colors">
-            <h3 className="font-display font-semibold text-lg text-primary leading-tight">
+      <div className="p-2 lg:p-5 flex flex-col flex-grow">
+        <div className="flex justify-between items-start mb-0.5 lg:mb-1.5">
+          <a href={`/product/${product.id}`} className="hover:text-secondary transition-colors line-clamp-2 pr-1">
+            <h3 className="font-display font-semibold text-[13px] lg:text-lg text-primary leading-tight">
               {product.name}
             </h3>
           </a>
@@ -116,7 +116,7 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
             className={`transition-colors flex-shrink-0 active:scale-90 ${wishlisted ? 'text-error' : 'text-on-surface-variant/50 hover:text-error'}`}
           >
             <span
-              className="material-symbols-outlined text-[22px]"
+              className="material-symbols-outlined text-[16px] lg:text-[22px]"
               style={wishlisted ? { fontVariationSettings: "'FILL' 1" } : undefined}
             >
               favorite
@@ -124,31 +124,31 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
           </button>
         </div>
 
-        <p className="text-[12px] text-outline mb-1">{product.unit} • {product.origin}</p>
+        <p className="text-[9px] lg:text-[12px] text-outline mb-1 line-clamp-1">{product.unit} • {product.origin}</p>
 
         {/* Rating */}
-        <div className="flex items-center gap-1 mb-3">
+        <div className="flex items-center gap-0.5 lg:gap-1 mb-2 lg:mb-3 mt-auto">
           <div className="flex text-amber-400">
             {[1, 2, 3, 4, 5].map(star => (
               <span
                 key={star}
-                className="material-symbols-outlined text-[14px]"
+                className="material-symbols-outlined text-[10px] lg:text-[14px]"
                 style={{ fontVariationSettings: star <= Math.round(product.ratings) ? "'FILL' 1" : "'FILL' 0" }}
               >
                 star
               </span>
             ))}
           </div>
-          <span className="text-[11px] text-outline">({product.reviewsCount})</span>
+          <span className="text-[9px] lg:text-[11px] text-outline">({product.reviewsCount})</span>
         </div>
 
-        <div className="flex items-center justify-between mt-auto">
-          <div className="flex items-baseline gap-2">
-            <span className="font-display text-xl font-bold text-primary">
+        <div className="flex items-center justify-between mt-auto pt-1 lg:pt-0">
+          <div className="flex items-baseline gap-1 lg:gap-2 flex-wrap">
+            <span className="font-display text-sm lg:text-xl font-bold text-primary">
               {formatCurrency(product.price)}
             </span>
             {product.originalPrice && (
-              <span className="text-sm text-outline line-through">
+              <span className="text-[10px] lg:text-sm text-outline line-through hidden sm:inline-block">
                 {formatCurrency(product.originalPrice)}
               </span>
             )}
@@ -157,9 +157,9 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
           <button
             onClick={handleAddToCart}
             disabled={product.stock === 0}
-            className="bg-primary text-white p-2.5 rounded-xl hover:bg-secondary transition-all active:scale-90 flex items-center gap-1.5 disabled:opacity-30 disabled:hover:bg-primary shadow-sm"
+            className="bg-primary text-white p-1.5 lg:p-2.5 rounded-lg lg:rounded-xl hover:bg-secondary transition-all active:scale-90 flex items-center gap-1 lg:gap-1.5 disabled:opacity-30 disabled:hover:bg-primary shadow-sm"
           >
-            <span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+            <span className="material-symbols-outlined text-[16px] lg:text-[18px]">add_shopping_cart</span>
             <span className="font-semibold text-[13px] hidden sm:inline">Add</span>
           </button>
         </div>

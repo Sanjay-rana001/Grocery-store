@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
@@ -25,6 +25,7 @@ export default function ProductDetailPage() {
   const { addItem } = useCartStore();
   const { toggleWishlist, isInWishlist } = useWishlistStore();
   const addReview = useAdminStore(state => state.addReview);
+  const editReview = useAdminStore(state => state.editReview);
 
   // States
   const [product, setProduct] = useState<Product | null>(null);
@@ -34,24 +35,51 @@ export default function ProductDetailPage() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewError, setReviewError] = useState('');
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
 
   // Fetch product on mount or id change
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
-    const prod = getProductById(id);
-    if (prod) {
-      setProduct(prod);
-      setActiveImageIndex(0);
-      setQuantity(1);
-    }
-    setLoading(false);
+    const loadProduct = async () => {
+      setLoading(true);
+      try {
+        const prod = await getProductById(id);
+        if (prod) {
+          setProduct(prod);
+          setActiveImageIndex(0);
+          setQuantity(1);
+        }
+      } catch (error) {
+        console.error('Failed to load product details:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProduct();
   }, [id]);
+
+  // Load related products when product is fetched
+  useEffect(() => {
+    if (!product) return;
+    const loadRelated = async () => {
+      try {
+        const all = await getProducts();
+        const filtered = all
+          .filter(p => p.category === product.category && p.id !== product.id)
+          .slice(0, 4);
+        setRelatedProducts(filtered);
+      } catch (error) {
+        console.error('Failed to load related products:', error);
+      }
+    };
+    loadRelated();
+  }, [product]);
 
   const wishlisted = product ? isInWishlist(product.id) : false;
 
   // Handle Review submission
-  const handleReviewSubmit = (e: React.FormEvent) => {
+  const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!product || !user) return;
 
@@ -60,29 +88,29 @@ export default function ProductDetailPage() {
       return;
     }
 
-    const newReview = addReview(product.id, reviewRating, reviewComment, user.name);
-    if (newReview) {
+    let success = false;
+    if (editingReviewId) {
+      const updatedReview = await editReview(product.id, editingReviewId, user.id, reviewRating, reviewComment);
+      success = !!updatedReview;
+    } else {
+      const newReview = await addReview(product.id, reviewRating, reviewComment, user.name, user.id);
+      success = !!newReview;
+    }
+
+    if (success) {
       // Reload product data to reflect new review
-      const updatedProd = getProductById(product.id);
+      const updatedProd = await getProductById(product.id);
       if (updatedProd) {
         setProduct(updatedProd);
       }
       setReviewComment('');
       setReviewRating(5);
       setReviewError('');
+      setEditingReviewId(null);
     } else {
       setReviewError('Failed to save your review. Please try again.');
     }
   };
-
-  // Get related products (same category, up to 4 items, excluding current)
-  const relatedProducts = useMemo(() => {
-    if (!product) return [];
-    const all = getProducts();
-    return all
-      .filter(p => p.category === product.category && p.id !== product.id)
-      .slice(0, 4);
-  }, [product]);
 
   if (loading) {
     return (
@@ -361,14 +389,14 @@ export default function ProductDetailPage() {
         {/* Reviews Section */}
         <section className="mt-12 bg-white rounded-[32px] p-6 sm:p-8 shadow-[0px_4px_24px_rgba(0,0,0,0.02)] border border-outline-variant/10">
           <h2 className="font-display text-headline-md font-bold text-primary mb-6">
-            Customer Reviews ({product.reviews.length})
+            Customer Reviews ({product.reviews?.length || 0})
           </h2>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             {/* Reviews List */}
             <div className="lg:col-span-2 space-y-6">
-              {product.reviews.length === 0 ? (
+              {!product.reviews || product.reviews.length === 0 ? (
                 <div className="text-center py-12 bg-background/50 rounded-2xl border border-dashed border-outline-variant/20">
                   <span className="material-symbols-outlined text-[48px] text-outline/30 mb-2">
                     rate_review
@@ -378,9 +406,23 @@ export default function ProductDetailPage() {
                 </div>
               ) : (
                 <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
-                  {product.reviews.map((rev) => (
-                    <div key={rev.id} className="bg-background/45 p-5 rounded-2xl border border-outline-variant/10 shadow-sm">
-                      <div className="flex justify-between items-start mb-2 gap-2">
+                  {(product.reviews || []).map((rev) => (
+                    <div key={rev.id} className="bg-background/45 p-5 rounded-2xl border border-outline-variant/10 shadow-sm relative">
+                      {user && user.id === rev.userId && (
+                        <button
+                          onClick={() => {
+                            setEditingReviewId(rev.id);
+                            setReviewRating(rev.rating);
+                            setReviewComment(rev.comment);
+                            document.getElementById('review-form-section')?.scrollIntoView({ behavior: 'smooth' });
+                          }}
+                          className="absolute top-4 right-4 text-xs font-bold text-secondary hover:underline cursor-pointer flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">edit</span>
+                          Edit
+                        </button>
+                      )}
+                      <div className="flex justify-between items-start mb-2 gap-2 pr-12">
                         <div>
                           <h4 className="font-bold text-sm text-primary">{rev.userName}</h4>
                           <span className="text-[10px] font-semibold text-outline">{formatDate(rev.date)}</span>
@@ -410,8 +452,8 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Review Form */}
-            <div className="bg-surface-container-low/55 p-6 rounded-2xl border border-outline-variant/10 shadow-sm h-fit">
-              <h3 className="font-bold text-base text-primary mb-4">Write a Review</h3>
+            <div id="review-form-section" className="bg-surface-container-low/55 p-6 rounded-2xl border border-outline-variant/10 shadow-sm h-fit">
+              <h3 className="font-bold text-base text-primary mb-4">{editingReviewId ? 'Edit Your Review' : 'Write a Review'}</h3>
               {isAuthenticated ? (
                 <form onSubmit={handleReviewSubmit} className="space-y-4">
                   {/* Stars Selection */}
@@ -457,8 +499,21 @@ export default function ProductDetailPage() {
                     type="submit"
                     className="w-full bg-primary hover:bg-secondary text-white font-bold text-sm py-2.5 rounded-xl transition-all shadow active:scale-95 cursor-pointer text-center"
                   >
-                    Submit Review
+                    {editingReviewId ? 'Update Review' : 'Submit Review'}
                   </button>
+                  {editingReviewId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingReviewId(null);
+                        setReviewRating(5);
+                        setReviewComment('');
+                      }}
+                      className="w-full bg-transparent text-outline font-bold text-sm py-2 rounded-xl hover:text-primary transition-all active:scale-95 cursor-pointer text-center"
+                    >
+                      Cancel
+                    </button>
+                  )}
                 </form>
               ) : (
                 <div className="text-center py-6 bg-white/70 rounded-xl">

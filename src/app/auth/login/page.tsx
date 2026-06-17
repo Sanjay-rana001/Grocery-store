@@ -18,8 +18,18 @@ type LoginSchemaType = zod.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isLoading, error, clearError, isAuthenticated } = useAuthStore();
+  const { login, googleLogin, appleLogin, isLoading, error, clearError, isAuthenticated } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('verified') === 'true') {
+        setIsVerified(true);
+      }
+    }
+  }, []);
 
   // If already authenticated, redirect to home page
   useEffect(() => {
@@ -84,19 +94,15 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Credentials hints */}
-        <div className="mb-6 p-4 rounded-2xl bg-surface-container-low/55 border border-outline-variant/20 text-xs leading-relaxed text-on-surface-variant font-medium">
-          <p className="font-bold text-primary mb-1 flex items-center gap-1">
-            <span className="material-symbols-outlined text-[15px] text-secondary">info</span>
-            Demo Accounts for Testing:
-          </p>
-          <p className="mt-1">
-            🔑 <strong className="text-primary">Customer role:</strong> customer@freshmart.co.nz / <code className="bg-white/60 px-1 py-0.5 rounded border border-outline-variant/10 font-bold">password123</code>
-          </p>
-          <p className="mt-0.5">
-            🛡️ <strong className="text-primary">Admin role:</strong> admin@freshmart.co.nz / <code className="bg-white/60 px-1 py-0.5 rounded border border-outline-variant/10 font-bold">password123</code>
-          </p>
-        </div>
+
+
+        {/* Verified success message */}
+        {isVerified && (
+          <div className="mb-5 p-3.5 bg-[#4CAF50]/10 text-[#4CAF50] rounded-2xl border border-[#4CAF50]/20 text-xs font-semibold flex items-start gap-2">
+            <span className="material-symbols-outlined text-[16px] mt-0.5">check_circle</span>
+            <span>Email successfully verified! You can now sign in.</span>
+          </div>
+        )}
 
         {/* Error message */}
         {error && (
@@ -188,6 +194,34 @@ export default function LoginPage() {
             ) : (
               <span>Sign In</span>
             )}
+          </button>
+
+          {/* Google Sign In */}
+          <button
+            type="button"
+            onClick={async () => {
+              const success = await googleLogin();
+              if (success) router.push('/');
+            }}
+            disabled={isLoading}
+            className="w-full bg-white hover:bg-surface-container-low text-primary font-bold py-3.5 px-6 rounded-2xl transition-all active:scale-95 shadow-sm border border-outline-variant/20 flex items-center justify-center gap-2 disabled:opacity-40 cursor-pointer mt-3"
+          >
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
+            <span>Sign in with Google</span>
+          </button>
+
+          {/* Apple Sign In */}
+          <button
+            type="button"
+            onClick={async () => {
+              const success = await appleLogin();
+              if (success) router.push('/');
+            }}
+            disabled={isLoading}
+            className="w-full bg-black hover:bg-gray-900 text-white font-bold py-3.5 px-6 rounded-2xl transition-all active:scale-95 shadow-sm border border-black flex items-center justify-center gap-2 disabled:opacity-40 cursor-pointer mt-3"
+          >
+            <img src="https://www.svgrepo.com/show/511330/apple-173.svg" alt="Apple" className="w-5 h-5 filter invert" />
+            <span>Sign in with Apple</span>
           </button>
         </form>
 

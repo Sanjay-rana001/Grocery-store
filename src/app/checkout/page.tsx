@@ -135,7 +135,7 @@ export default function CheckoutPage() {
   };
 
   // Complete checkout & write to DB Step 3
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (!step1Address || !user) return;
 
     const orderData = {
@@ -163,19 +163,24 @@ export default function CheckoutPage() {
       paymentMethod
     };
 
-    const finalOrder = createOrder(orderData);
-    
-    // Clear Zustand cart
-    clearCart();
-    
-    // Redirect to success page
-    router.push(`/order-success?orderId=${finalOrder.id}`);
+    try {
+      const finalOrder = await createOrder(orderData);
+      
+      // Clear Zustand cart
+      clearCart();
+      
+      // Redirect to success page
+      router.push(`/order-success?orderId=${finalOrder.id}`);
+    } catch (error) {
+      console.error('Failed to place order:', error);
+      alert('There was an error placing your order. Please try again.');
+    }
   };
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!couponVal.trim()) return;
-    applyCouponCode(couponVal.trim());
+    await applyCouponCode(couponVal.trim());
   };
 
   const NZ_CITIES = [

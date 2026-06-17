@@ -17,19 +17,8 @@ export default function AdminDashboard() {
     return [...orders].slice(0, 5);
   }, [orders]);
 
-  if (isLoading || !stats) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <span className="material-symbols-outlined text-[48px] animate-spin text-secondary">
-          progress_activity
-        </span>
-        <p className="font-semibold text-sm">Collating business analytics...</p>
-      </div>
-    );
-  }
-
   // Helper for generating custom SVG points on line charts
-  const revenuePoints = stats.dailyRevenue || [];
+  const revenuePoints = stats?.dailyRevenue || [];
   const maxRev = Math.max(...revenuePoints.map(d => d.amount), 50) * 1.1;
 
   const svgPath = useMemo(() => {
@@ -57,6 +46,18 @@ export default function AdminDashboard() {
 
     return { line: path, area: areaPath, points };
   }, [revenuePoints, maxRev]);
+
+  if (!stats) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <span className="material-symbols-outlined text-[48px] animate-spin text-secondary">
+          progress_activity
+        </span>
+        <p className="font-semibold text-sm">Collating business analytics...</p>
+      </div>
+    );
+  }
+
 
   const cards = [
     {

@@ -10,13 +10,17 @@ interface AdminState {
   stats: DashboardStats | null;
   isLoading: boolean;
 
-  loadAllData: () => void;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => boolean;
-  saveProduct: (product: Product) => void;
-  deleteProduct: (productId: string) => boolean;
-  saveCoupon: (coupon: Coupon) => void;
-  deleteCoupon: (code: string) => boolean;
-  addReview: (productId: string, rating: number, comment: string, userName: string) => Review | null;
+  loadAllData: () => Promise<void>;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<boolean>;
+  updateOrder: (orderId: string, orderData: Partial<Order>) => Promise<boolean>;
+  deleteOrder: (orderId: string) => Promise<boolean>;
+  createOrder: (orderData: Omit<Order, 'id' | 'createdAt' | 'status' | 'trackingNumber' | 'paymentStatus'>) => Promise<Order | null>;
+  saveProduct: (product: Product) => Promise<void>;
+  deleteProduct: (productId: string) => Promise<boolean>;
+  saveCoupon: (coupon: Coupon) => Promise<void>;
+  deleteCoupon: (code: string) => Promise<boolean>;
+  addReview: (productId: string, rating: number, comment: string, userName: string, userId: string) => Promise<Review | null>;
+  editReview: (productId: string, reviewId: string, userId: string, rating: number, comment: string) => Promise<Review | null>;
 }
 
 export const useAdminStore = create<AdminState>((set, get) => ({
@@ -27,64 +31,105 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   stats: null,
   isLoading: false,
 
-  loadAllData: () => {
+  loadAllData: async () => {
     set({ isLoading: true });
-    
-    // In-memory or localStorage pull
-    const products = db.getProducts();
-    const orders = db.getOrders();
-    const users = db.getUsers();
-    const coupons = db.getCoupons();
-    const stats = db.getDashboardStats();
+    try {
+      const [products, orders, users, coupons, stats] = await Promise.all([
+        db.getProducts(),
+        db.getOrders(),
+        db.getUsers(),
+        db.getCoupons(),
+        db.getDashboardStats()
+      ]);
 
-    set({
-      products,
-      orders,
-      users,
-      coupons,
-      stats,
-      isLoading: false
-    });
+      set({
+        products,
+        orders,
+        users,
+        coupons,
+        stats,
+        isLoading: false
+      });
+    } catch (error) {
+      console.error('Failed to load admin data:', error);
+      set({ isLoading: false });
+    }
   },
 
-  updateOrderStatus: (orderId, status) => {
-    const success = db.updateOrderStatus(orderId, status);
+  updateOrderStatus: async (orderId, status) => {
+    const success = await db.updateOrderStatus(orderId, status);
     if (success) {
-      get().loadAllData();
+      await get().loadAllData();
     }
     return success;
   },
 
-  saveProduct: (product) => {
-    db.saveProduct(product);
-    get().loadAllData();
-  },
-
-  deleteProduct: (productId) => {
-    const success = db.deleteProduct(productId);
+  updateOrder: async (orderId, orderData) => {
+    const success = await db.updateOrder(orderId, orderData);
     if (success) {
-      get().loadAllData();
+      await get().loadAllData();
     }
     return success;
   },
 
-  saveCoupon: (coupon) => {
-    db.saveCoupon(coupon);
-    get().loadAllData();
-  },
-
-  deleteCoupon: (code) => {
-    const success = db.deleteCoupon(code);
+  deleteOrder: async (orderId) => {
+    const success = await db.deleteOrder(orderId);
     if (success) {
-      get().loadAllData();
+      await get().loadAllData();
     }
     return success;
   },
 
-  addReview: (productId, rating, comment, userName) => {
-    const review = db.addProductReview(productId, { rating, comment, userName });
+  createOrder: async (orderData) => {
+    try {
+      const newOrder = await db.createOrder(orderData);
+      if (newOrder) {
+        await get().loadAllData();
+      }
+      return newOrder;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  saveProduct: async (product) => {
+    await db.saveProduct(product);
+    await get().loadAllData();
+  },
+
+  deleteProduct: async (productId) => {
+    const success = await db.deleteProduct(productId);
+    if (success) {
+      await get().loadAllData();
+    }
+    return success;
+  },
+
+  saveCoupon: async (coupon) => {
+    await db.saveCoupon(coupon);
+    await get().loadAllData();
+  },
+
+  deleteCoupon: async (code) => {
+    const success = await db.deleteCoupon(code);
+    if (success) {
+      await get().loadAllData();
+    }
+    return success;
+  },
+
+  addReview: async (productId, rating, comment, userName, userId) => {
+    const review = await db.addProductReview(productId, { rating, comment, userName, userId });
     if (review) {
-      get().loadAllData();
+      await get().loadAllData();
+    }
+    return review;
+  },
+
+  editReview: async (productId, reviewId, userId, rating, comment) => {
+    const review = await db.editProductReview(productId, reviewId, userId, rating, comment);
+    if (review) {
+      await get().loadAllData();
     }
     return review;
   }

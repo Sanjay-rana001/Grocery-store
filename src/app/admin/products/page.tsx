@@ -9,6 +9,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as zod from 'zod';
 import Image from 'next/image';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 // Validation Schema for Product Editor
 const productSchema = zod.object({
@@ -41,6 +43,8 @@ export default function AdminProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
     loadAllData();
@@ -52,10 +56,40 @@ export default function AdminProductsPage() {
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<ProductSchemaType>({
     resolver: zodResolver(productSchema) as any,
   });
+
+  const watchImageUrl = watch('imageUrl'); // To display image preview
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    setIsUploading(true);
+    setUploadProgress(0);
+    
+    const storageRef = ref(storage, `products/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+        setUploadProgress(progress);
+      },
+      (error) => {
+        console.error('Upload failed', error);
+        setIsUploading(false);
+      },
+      async () => {
+        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+        setValue('imageUrl', downloadURL, { shouldValidate: true });
+        setIsUploading(false);
+      }
+    );
+  };
 
   // Open modal for Adding new product
   const handleOpenAddModal = () => {
@@ -466,15 +500,42 @@ export default function AdminProductsPage() {
                     {errors.stock && <p className="text-[10px] text-error font-semibold mt-1">{errors.stock.message}</p>}
                   </div>
 
-                  {/* Image URL */}
+                  {/* Image Upload */}
                   <div className="sm:col-span-2">
-                    <label className="text-[10px] font-bold text-outline block mb-1">Photo Image URL</label>
-                    <input
-                      type="text"
-                      {...register('imageUrl')}
-                      className="w-full text-xs p-3 bg-background rounded-xl border border-outline-variant/30 text-primary font-semibold font-mono"
-                    />
-                    {errors.imageUrl && <p className="text-[10px] text-error font-semibold mt-1">{errors.imageUrl.message}</p>}
+                    <label className="text-[10px] font-bold text-outline block mb-1">Product Photo</label>
+                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                      <div className="relative w-24 h-24 rounded-2xl bg-surface-container-low border-2 border-dashed border-outline-variant/30 flex items-center justify-center overflow-hidden shrink-0">
+                        {watchImageUrl ? (
+                          <img src={watchImageUrl} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="material-symbols-outlined text-[32px] text-outline">image</span>
+                        )}
+                        {isUploading && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <span className="text-white text-[10px] font-bold">{uploadProgress}%</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 w-full space-y-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          disabled={isUploading}
+                          className="w-full text-xs p-2 bg-background rounded-xl border border-outline-variant/30 text-primary font-semibold file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-secondary/10 file:text-secondary hover:file:bg-secondary/20 cursor-pointer"
+                        />
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-outline">OR Paste URL:</span>
+                          <input
+                            type="text"
+                            {...register('imageUrl')}
+                            placeholder="https://..."
+                            className="flex-1 text-xs p-2 bg-background rounded-xl border border-outline-variant/30 text-primary font-semibold font-mono"
+                          />
+                        </div>
+                        {errors.imageUrl && <p className="text-[10px] text-error font-semibold">{errors.imageUrl.message}</p>}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Description */}

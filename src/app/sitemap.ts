@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next';
-import { getProducts } from '@/lib/db';
+import { getProducts } from '@/lib/serverDb';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://freshmart.co.nz';

@@ -18,8 +18,15 @@ export default function OrderSuccessPage() {
 
   useEffect(() => {
     if (orderId) {
-      const found = getOrderById(orderId);
-      if (found) setOrder(found);
+      const loadOrder = async () => {
+        try {
+          const found = await getOrderById(orderId);
+          if (found) setOrder(found);
+        } catch (error) {
+          console.error('Error loading order:', error);
+        }
+      };
+      loadOrder();
     }
   }, [orderId]);
 

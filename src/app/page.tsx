@@ -22,6 +22,7 @@ function ShopContent() {
 
   // Local state for interactive filters
   const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
   // Filter States
@@ -47,8 +48,26 @@ function ShopContent() {
   // On mount and category/search update
   useEffect(() => {
     // Load fresh data (including potential admin updates)
-    setProducts(getProducts());
-  }, [categoryParam, searchParam, filterParam]);
+    const loadProducts = async () => {
+      setIsLoading(true);
+      try {
+        const data = await getProducts();
+        setProducts(data);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadProducts();
+  }, []);
+
+  // Intercept Firebase email verification redirects that accidentally drop the path
+  useEffect(() => {
+    if (searchParams.get('verified') === 'true') {
+      router.push('/auth/login?verified=true');
+    }
+  }, [searchParams, router]);
 
   // Sync organicOnly and deals filters from URL parameter triggers
   useEffect(() => {
@@ -63,12 +82,12 @@ function ShopContent() {
 
   // Unique list of categories
   const categories = [
-    { id: 'all', label: 'All' },
-    { id: 'Products', label: 'Products' },
-    { id: 'meat', label: 'Meat & Poultry' },
-    { id: 'dairy', label: 'Dairy' },
-    { id: 'pantry', label: 'Pantry' },
-    { id: 'bakery', label: 'Bakery' },
+    { id: 'all', label: 'All', icon: 'apps' },
+    { id: 'Products', label: 'Products', icon: 'nutrition' },
+    { id: 'meat', label: 'Meat', icon: 'set_meal' },
+    { id: 'dairy', label: 'Dairy', icon: 'water_drop' },
+    { id: 'pantry', label: 'Pantry', icon: 'kitchen' },
+    { id: 'bakery', label: 'Bakery', icon: 'bakery_dining' },
   ];
 
   // Unique list of brands from current products
@@ -185,10 +204,10 @@ function ShopContent() {
     <>
       <Navbar />
 
-      <main className="pt-24 pb-20 md:pb-12 max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop bg-background text-on-background min-h-screen">
+      <main className="pt-20 lg:pt-24 pb-20 md:pb-12 max-w-container-max mx-auto lg:px-margin-desktop bg-background text-on-background min-h-screen flex flex-col lg:block">
         
-        {/* Category Pills at top */}
-        <div className="flex gap-3 overflow-x-auto py-4 mb-6 scrollbar-hide">
+        {/* Category Pills at top (Desktop only) */}
+        <div className="hidden lg:flex gap-3 overflow-x-auto py-4 mb-6 scrollbar-hide px-margin-mobile lg:px-0">
           {categories.map(cat => {
             const isActive = categoryParam === cat.id;
             return (
@@ -207,7 +226,33 @@ function ShopContent() {
           })}
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-row lg:gap-8 flex-grow lg:flex-grow-0">
+          
+          {/* Mobile Category Sidebar (Left) */}
+          <aside className="w-[26%] bg-surface-container-low/40 border-r border-outline-variant/10 flex flex-col overflow-y-auto lg:hidden h-[calc(100vh-140px)] sticky top-20 z-10 scrollbar-hide">
+            {categories.map(cat => {
+              const isActive = categoryParam === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => handleCategoryChange(cat.id)}
+                  className={`flex flex-col items-center justify-center p-3 border-l-4 transition-colors cursor-pointer shrink-0 ${
+                    isActive 
+                      ? 'border-secondary bg-white text-primary shadow-sm' 
+                      : 'border-transparent text-on-surface-variant hover:bg-surface-container-low'
+                  }`}
+                >
+                  <span 
+                    className={`material-symbols-outlined text-[24px] mb-1.5 ${isActive ? 'text-secondary' : 'text-outline/70'}`}
+                    style={isActive ? { fontVariationSettings: "'FILL' 1" } : {}}
+                  >
+                    {cat.icon}
+                  </span>
+                  <span className={`text-[10px] text-center font-bold leading-tight ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>{cat.label}</span>
+                </button>
+              )
+            })}
+          </aside>
           
           {/* Desktop Sidebar Filters */}
           <aside className="hidden lg:block w-72 flex-shrink-0">
@@ -343,21 +388,21 @@ function ShopContent() {
           </aside>
 
           {/* Product Grid Area */}
-          <section className="flex-grow">
+          <section className="w-[74%] lg:w-auto lg:flex-grow p-2 lg:p-0 min-h-[calc(100vh-140px)] bg-[#f8f9fa] lg:bg-transparent">
             
             {/* Sorting & Top Bar */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 bg-white p-5 rounded-[24px] shadow-[0px_4px_20px_rgba(0,0,0,0.02)] border border-outline-variant/10">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 lg:mb-6 gap-2 lg:gap-4 bg-white p-3 lg:p-5 rounded-xl lg:rounded-[24px] shadow-sm border border-outline-variant/10">
               <div>
-                <span className="text-headline-md font-display font-bold text-primary capitalize">
+                <span className="text-sm lg:text-headline-md font-display font-bold text-primary capitalize">
                   {categoryParam === 'all'
                     ? searchParam
                       ? `Search: "${searchParam}"`
                       : filterParam
-                      ? `${filterParam} organic goods`
-                      : 'Fresh Products & Groceries'
-                    : `${categoryParam} selection`}
+                      ? `${filterParam} organic`
+                      : 'Fresh Groceries'
+                    : `${categoryParam}`}
                 </span>
-                <p className="text-xs font-semibold text-outline mt-0.5">
+                <p className="text-[10px] lg:text-xs font-semibold text-outline mt-0.5">
                   Showing {filteredProducts.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} -{' '}
                   {Math.min(currentPage * itemsPerPage, filteredProducts.length)} of{' '}
                   {filteredProducts.length} results
@@ -368,10 +413,10 @@ function ShopContent() {
                 {/* Mobile Filter Button */}
                 <button
                   onClick={() => setIsMobileSidebarOpen(true)}
-                  className="lg:hidden flex items-center gap-2 bg-surface-container px-4 py-2 rounded-xl text-primary font-semibold text-sm active:scale-95 cursor-pointer"
+                  className="lg:hidden flex items-center justify-center gap-1 bg-surface-container px-3 py-1.5 rounded-lg text-primary font-semibold text-xs active:scale-95 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[18px]">filter_list</span>
-                  <span>Filters</span>
+                  <span className="material-symbols-outlined text-[16px]">filter_list</span>
+                  <span>Filter</span>
                 </button>
 
                 <div className="flex items-center gap-2">
@@ -382,7 +427,7 @@ function ShopContent() {
                       setSortBy(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="bg-surface-container-low border-none rounded-xl text-xs font-semibold px-3.5 py-2.5 text-primary focus:ring-2 focus:ring-secondary/20 cursor-pointer"
+                    className="bg-surface-container-low border-none rounded-lg lg:rounded-xl text-[10px] lg:text-xs font-semibold px-2 py-1.5 lg:px-3.5 lg:py-2.5 text-primary focus:ring-2 focus:ring-secondary/20 cursor-pointer"
                   >
                     <option value="popularity">Popularity</option>
                     <option value="price-asc">Price: Low to High</option>
@@ -394,7 +439,15 @@ function ShopContent() {
             </div>
 
             {/* Cards Grid */}
-            {filteredProducts.length === 0 ? (
+            {isLoading ? (
+              <div className="bg-white rounded-[32px] py-24 px-6 text-center shadow-[0px_4px_20px_rgba(0,0,0,0.02)] border border-outline-variant/10 flex flex-col items-center justify-center min-h-[400px]">
+                <span className="material-symbols-outlined text-[48px] animate-spin text-secondary mb-4">
+                  progress_activity
+                </span>
+                <h3 className="font-display font-bold text-headline-md text-primary">Harvesting fresh groceries...</h3>
+                <p className="text-on-surface-variant text-sm mt-2">Connecting to local farmers in New Zealand.</p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
               <div className="bg-white rounded-[32px] py-16 px-6 text-center shadow-[0px_4px_20px_rgba(0,0,0,0.02)] border border-outline-variant/10">
                 <span className="material-symbols-outlined text-[64px] text-outline/35 mb-4">
                   sentiment_dissatisfied
@@ -411,7 +464,7 @@ function ShopContent() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-2 lg:gap-6">
                 {paginatedProducts.map(product => (
                   <ProductCard key={product.id} product={product} />
                 ))}
