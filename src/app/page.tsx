@@ -43,7 +43,7 @@ function ShopContent() {
   const [minRating, setMinRating] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState('popularity');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6;
+  const itemsPerPage = 100; // Increased to show all products on a single page
 
   // On mount and category/search update
   useEffect(() => {
@@ -229,7 +229,7 @@ function ShopContent() {
         <div className="flex flex-row lg:gap-8 flex-grow lg:flex-grow-0">
           
           {/* Mobile Category Sidebar (Left) */}
-          <aside className="w-[26%] bg-surface-container-low/40 border-r border-outline-variant/10 flex flex-col overflow-y-auto lg:hidden h-[calc(100vh-140px)] sticky top-20 z-10 scrollbar-hide">
+          <aside className="w-[80px] bg-surface-container-low/40 border-r border-outline-variant/10 flex flex-col overflow-y-auto lg:hidden h-[calc(100vh-140px)] sticky top-20 z-10 scrollbar-hide shrink-0">
             {categories.map(cat => {
               const isActive = categoryParam === cat.id;
               return (
@@ -243,12 +243,12 @@ function ShopContent() {
                   }`}
                 >
                   <span 
-                    className={`material-symbols-outlined text-[24px] mb-1.5 ${isActive ? 'text-secondary' : 'text-outline/70'}`}
+                    className={`material-symbols-outlined text-[20px] mb-1 ${isActive ? 'text-secondary' : 'text-outline/70'}`}
                     style={isActive ? { fontVariationSettings: "'FILL' 1" } : {}}
                   >
                     {cat.icon}
                   </span>
-                  <span className={`text-[10px] text-center font-bold leading-tight ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>{cat.label}</span>
+                  <span className={`text-[9px] text-center font-bold leading-tight ${isActive ? 'text-primary' : 'text-on-surface-variant'}`}>{cat.label}</span>
                 </button>
               )
             })}
@@ -388,7 +388,7 @@ function ShopContent() {
           </aside>
 
           {/* Product Grid Area */}
-          <section className="w-[74%] lg:w-auto lg:flex-grow p-2 lg:p-0 min-h-[calc(100vh-140px)] bg-[#f8f9fa] lg:bg-transparent">
+          <section className="w-[calc(100%-80px)] lg:w-auto lg:flex-grow p-2 lg:p-0 min-h-[calc(100vh-140px)] bg-[#f8f9fa] lg:bg-transparent">
             
             {/* Sorting & Top Bar */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 lg:mb-6 gap-2 lg:gap-4 bg-white p-3 lg:p-5 rounded-xl lg:rounded-[24px] shadow-sm border border-outline-variant/10">
