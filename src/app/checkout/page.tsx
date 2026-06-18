@@ -573,20 +573,20 @@ export default function CheckoutPage() {
                 <div className="flex gap-4">
                   <button
                     type="button"
-                    onClick={() => setStep(2)}
+                    onClick={() => router.push('/orders')}
                     className="border border-outline-variant/60 text-primary font-bold py-3.5 px-6 rounded-2xl active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
                   >
-                    <span className="material-symbols-outlined">edit</span>
-                    <span>Edit Payment</span>
+                    <span className="material-symbols-outlined">receipt_long</span>
+                    <span>View Orders</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={handlePlaceOrder}
+                    onClick={() => router.push('/')}
                     className="flex-1 bg-secondary text-white font-extrabold py-3.5 px-8 rounded-2xl hover:bg-primary transition-all active:scale-95 shadow-md flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>Place Order Now</span>
-                    <span className="material-symbols-outlined">send</span>
+                    <span>Continue Shopping</span>
+                    <span className="material-symbols-outlined">storefront</span>
                   </button>
                 </div>
               </motion.div>
