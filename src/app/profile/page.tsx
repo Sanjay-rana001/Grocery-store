@@ -108,22 +108,47 @@ export default function ProfilePage() {
     setIsUploadingImage(true);
 
     try {
-      // Import client storage
-      const { storage } = await import('@/lib/firebase');
-      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
-      
-      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-      const filename = `profiles/${uniqueSuffix}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
-      const storageRef = ref(storage, filename);
-      
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      
-      setProfileImage(url);
+      // Compress and convert image to Base64 to bypass Firebase Storage completely
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 250;
+          const MAX_HEIGHT = 250;
+          let width = img.width;
+          let height = img.height;
+
+          // Calculate aspect ratio
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height = Math.round((height * MAX_WIDTH) / width);
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width = Math.round((width * MAX_HEIGHT) / height);
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            // Compress to JPEG with 0.7 quality to ensure small payload size (< 20kb)
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            setProfileImage(compressedBase64);
+          }
+          setIsUploadingImage(false);
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
     } catch (err) {
-      console.error('Firebase Client Upload Error:', err);
-      alert('An error occurred while uploading. Ensure your Firebase Storage Rules allow uploads.');
-    } finally {
+      console.error('Image processing error:', err);
+      alert('Failed to process image. Please try a different photo.');
       setIsUploadingImage(false);
     }
   };
