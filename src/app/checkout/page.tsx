@@ -215,7 +215,7 @@ export default function CheckoutPage() {
     try {
       const finalOrder = await createOrder(newOrder);
       clearCart();
-      setStep(3);
+      router.push('/orders');
       setIsProcessing(false);
     } catch (error: any) {
       console.error('Failed to place order:', error);
