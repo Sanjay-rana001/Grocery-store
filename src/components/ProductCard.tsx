@@ -116,7 +116,7 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
             className={`transition-colors flex-shrink-0 active:scale-90 ${wishlisted ? 'text-error' : 'text-on-surface-variant/50 hover:text-error'}`}
           >
             <span
-              className="material-symbols-outlined text-[16px] lg:text-[22px]"
+              className="material-symbols-outlined text-[14px] lg:text-[22px]"
               style={wishlisted ? { fontVariationSettings: "'FILL' 1" } : undefined}
             >
               favorite
@@ -127,19 +127,19 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
         <p className="text-[9px] lg:text-[12px] text-outline mb-1 line-clamp-1">{product.unit} • {product.origin}</p>
 
         {/* Rating */}
-        <div className="flex items-center gap-0.5 lg:gap-1 mb-2 lg:mb-3 mt-auto">
+        <div className="flex items-center gap-0.5 mb-2 lg:mb-3 mt-auto">
           <div className="flex text-amber-400">
             {[1, 2, 3, 4, 5].map(star => (
               <span
                 key={star}
-                className="material-symbols-outlined text-[10px] lg:text-[14px]"
+                className="material-symbols-outlined text-[8px] lg:text-[14px]"
                 style={{ fontVariationSettings: star <= Math.round(product.ratings) ? "'FILL' 1" : "'FILL' 0" }}
               >
                 star
               </span>
             ))}
           </div>
-          <span className="text-[9px] lg:text-[11px] text-outline">({product.reviewsCount})</span>
+          <span className="text-[8px] lg:text-[11px] text-outline">({product.reviewsCount})</span>
         </div>
 
         <div className="flex items-center justify-between mt-auto pt-1 lg:pt-0">
@@ -159,7 +159,7 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
             disabled={product.stock === 0}
             className="bg-primary text-white p-1.5 lg:p-2.5 rounded-lg lg:rounded-xl hover:bg-secondary transition-all active:scale-90 flex items-center gap-1 lg:gap-1.5 disabled:opacity-30 disabled:hover:bg-primary shadow-sm"
           >
-            <span className="material-symbols-outlined text-[16px] lg:text-[18px]">add_shopping_cart</span>
+            <span className="material-symbols-outlined text-[14px] lg:text-[18px]">add_shopping_cart</span>
             <span className="font-semibold text-[13px] hidden sm:inline">Add</span>
           </button>
         </div>
