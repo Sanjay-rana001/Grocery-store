@@ -137,11 +137,20 @@ export default function OrdersPage() {
 
       <main className="pt-24 pb-20 md:pb-12 max-w-container-max mx-auto px-margin-mobile lg:px-margin-desktop min-h-screen bg-background">
         {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="font-display text-headline-lg font-bold text-primary">My Orders</h1>
-          <p className="text-on-surface-variant text-sm mt-1">
-            Track, view detailed bills, and reorder your fresh organic groceries.
-          </p>
+        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="font-display text-headline-lg font-bold text-primary">My Orders</h1>
+            <p className="text-on-surface-variant text-sm mt-1">
+              Track, view detailed bills, and reorder your fresh organic groceries.
+            </p>
+          </div>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 bg-secondary text-white font-bold text-sm px-6 py-3 rounded-xl hover:bg-primary active:scale-95 transition-all shadow-sm self-start md:self-auto"
+          >
+            <span className="material-symbols-outlined text-[20px]">storefront</span>
+            Shop More
+          </Link>
         </div>
 
         {isLoading ? (
