@@ -174,9 +174,12 @@ export default function CheckoutPage() {
         date: deliverySlot.date,
         time: deliverySlot.time
       },
-      couponCode: coupon?.code || undefined,
       paymentMethod: selectedMethod === 'cod' ? 'cod' : 'mock_online'
-    };
+    } as any; // Cast as any temporarily to allow adding optional couponCode later
+
+    if (coupon?.code) {
+      newOrder.couponCode = coupon.code;
+    }
 
     try {
       const finalOrder = await createOrder(newOrder);
