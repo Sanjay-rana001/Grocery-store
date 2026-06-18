@@ -51,6 +51,7 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [gatewayData, setGatewayData] = useState<{ providerName: string, clientSecret?: string, transactionId?: string } | null>(null);
   const [deliverySlot, setDeliverySlot] = useState({ date: '', time: '' });
+  const [selectedMethod, setSelectedMethod] = useState<'card' | 'cod'>('card');
   const [couponVal, setCouponVal] = useState('');
   const [step1Address, setStep1Address] = useState<AddressSchemaType | null>(null);
 
@@ -208,7 +209,7 @@ export default function CheckoutPage() {
         time: deliverySlot.time
       },
       couponCode: coupon?.code || undefined,
-      paymentMethod: gatewayData?.providerName || 'unknown'
+      paymentMethod: selectedMethod === 'cod' ? 'cod' : (gatewayData?.providerName || 'unknown')
     };
 
     try {
@@ -216,9 +217,9 @@ export default function CheckoutPage() {
       clearCart();
       setStep(3);
       setIsProcessing(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to place order:', error);
-      alert('There was an error placing your order. Please try again.');
+      alert(`There was an error placing your order: ${error.message || 'Unknown error'}. Please try again.`);
       setIsProcessing(false);
     }
   };
@@ -473,49 +474,128 @@ export default function CheckoutPage() {
               >
                 <h3 className="font-display font-bold text-headline-sm text-primary mb-6 flex items-center gap-2">
                   <span className="material-symbols-outlined text-secondary text-[26px]">payment</span>
-                  Payment Details
+                  Choose Payment Method
                 </h3>
                 
-                {gatewayData.providerName === 'stripe' && gatewayData.clientSecret ? (
-                  <Elements stripe={stripePromise} options={{ clientSecret: gatewayData.clientSecret, appearance: { theme: 'stripe' } }}>
-                    <StripeCheckoutForm onSuccess={handlePaymentSuccess} totalAmount={total} />
-                  </Elements>
-                ) : gatewayData.providerName === 'mock' ? (
-                  <div className="space-y-6">
-                    <div className="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/20 flex flex-col items-center text-center">
-                      <span className="material-symbols-outlined text-[48px] text-secondary mb-2">science</span>
-                      <h4 className="font-bold text-primary text-lg">Mock Payment Environment</h4>
-                      <p className="text-sm text-outline mt-1 max-w-sm">
-                        You are currently using the mock payment gateway for testing. No real money will be charged.
-                      </p>
+                <div className="space-y-4 mb-8">
+                  {/* Card Option */}
+                  <div 
+                    onClick={() => setSelectedMethod('card')}
+                    className={`p-5 rounded-3xl border-2 transition-all cursor-pointer ${
+                      selectedMethod === 'card' ? 'border-secondary bg-secondary-container/5 ring-4 ring-secondary/5' : 'border-outline-variant/35 bg-white hover:border-outline-variant'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <span className="material-symbols-outlined text-secondary text-[28px]">credit_card</span>
+                        <div>
+                          <p className="font-bold text-sm text-primary">Pay securely online (Card)</p>
+                          <p className="text-[10px] text-outline font-semibold">Credit, Debit, Apple Pay, Google Pay</p>
+                        </div>
+                      </div>
+                      <input 
+                        type="radio" 
+                        checked={selectedMethod === 'card'} 
+                        onChange={() => setSelectedMethod('card')}
+                        className="w-5 h-5 accent-secondary"
+                      />
                     </div>
+                  </div>
 
+                  {/* COD Option */}
+                  <div 
+                    onClick={() => setSelectedMethod('cod')}
+                    className={`p-5 rounded-3xl border-2 transition-all cursor-pointer ${
+                      selectedMethod === 'cod' ? 'border-secondary bg-secondary-container/5 ring-4 ring-secondary/5' : 'border-outline-variant/35 bg-white hover:border-outline-variant'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <span className="material-symbols-outlined text-secondary text-[28px]">payments</span>
+                        <div>
+                          <p className="font-bold text-sm text-primary">Cash on Delivery (COD)</p>
+                          <p className="text-[10px] text-outline font-semibold">Pay with cash at your doorstep</p>
+                        </div>
+                      </div>
+                      <input 
+                        type="radio" 
+                        checked={selectedMethod === 'cod'} 
+                        onChange={() => setSelectedMethod('cod')}
+                        className="w-5 h-5 accent-secondary"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Gateway / Action Area */}
+                {selectedMethod === 'card' ? (
+                  <>
+                    {gatewayData.providerName === 'stripe' && gatewayData.clientSecret ? (
+                      <Elements stripe={stripePromise} options={{ clientSecret: gatewayData.clientSecret, appearance: { theme: 'stripe' } }}>
+                        <StripeCheckoutForm onSuccess={handlePaymentSuccess} totalAmount={total} />
+                      </Elements>
+                    ) : gatewayData.providerName === 'mock' ? (
+                      <div className="space-y-6">
+                        <div className="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/20 flex flex-col items-center text-center">
+                          <span className="material-symbols-outlined text-[48px] text-secondary mb-2">science</span>
+                          <h4 className="font-bold text-primary text-lg">Mock Payment Environment</h4>
+                          <p className="text-sm text-outline mt-1 max-w-sm">
+                            You are currently using the mock payment gateway for testing. No real money will be charged.
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={handlePaymentSuccess}
+                          disabled={isProcessing}
+                          className={`w-full font-bold py-4 rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 ${
+                            isProcessing
+                              ? 'bg-surface-container-low text-outline cursor-wait shadow-none'
+                              : 'bg-primary text-white hover:bg-primary/90 active:scale-95 cursor-pointer'
+                          }`}
+                        >
+                          {isProcessing ? (
+                            <>
+                              <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                              Processing Mock Payment...
+                            </>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined text-[20px]">lock</span>
+                              Simulate Payment of ${total.toFixed(2)}
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="bg-error/10 text-error p-4 rounded-xl flex items-center gap-3 text-sm font-semibold">
+                        <span className="material-symbols-outlined">error</span>
+                        Unsupported Payment Gateway Configuration.
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="pt-2">
                     <button
                       onClick={handlePaymentSuccess}
                       disabled={isProcessing}
                       className={`w-full font-bold py-4 rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 ${
                         isProcessing
                           ? 'bg-surface-container-low text-outline cursor-wait shadow-none'
-                          : 'bg-primary text-white hover:bg-primary/90 active:scale-95 cursor-pointer'
+                          : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 cursor-pointer'
                       }`}
                     >
                       {isProcessing ? (
                         <>
                           <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
-                          Processing Mock Payment...
+                          Placing Order...
                         </>
                       ) : (
                         <>
-                          <span className="material-symbols-outlined text-[20px]">lock</span>
-                          Simulate Payment of ${total.toFixed(2)}
+                          <span className="material-symbols-outlined text-[20px]">local_shipping</span>
+                          Place Order (Pay on Delivery)
                         </>
                       )}
                     </button>
-                  </div>
-                ) : (
-                  <div className="bg-error/10 text-error p-4 rounded-xl flex items-center gap-3 text-sm font-semibold">
-                    <span className="material-symbols-outlined">error</span>
-                    Unsupported Payment Gateway Configuration.
                   </div>
                 )}
 
@@ -564,7 +644,7 @@ export default function CheckoutPage() {
                     <h4 className="font-bold text-primary mt-3 mb-0.5">Payment Authorized via</h4>
                     <p className="text-on-surface-variant text-xs font-bold uppercase flex items-center gap-1">
                       <span className="material-symbols-outlined text-[15px]">done</span>
-                      {gatewayData?.providerName || 'Unknown Gateway'}
+                      {selectedMethod === 'cod' ? 'Cash on Delivery' : (gatewayData?.providerName || 'Unknown Gateway')}
                     </p>
                   </div>
                 </div>
