@@ -23,9 +23,9 @@ export async function getActivePaymentProvider(forcedProvider?: 'stripe' | 'mock
     // Read from Firebase System Settings so Admin can toggle it in real-time!
     const settings = await getSystemSettings();
     const active = settings.activePaymentProvider;
-    
-    if (active && providers[active]) {
-      return { name: active, provider: providers[active] };
+    if (active && active in providers) {
+      const providerKey = active as keyof typeof providers;
+      return { name: providerKey, provider: providers[providerKey] };
     }
   } catch (error) {
     console.error('Failed to get payment system settings, falling back to Environment Var');
