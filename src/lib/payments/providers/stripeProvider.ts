@@ -9,7 +9,7 @@ export class StripeProvider implements PaymentProvider {
     // In a real production scenario, it would throw an error if missing.
     const secretKey = process.env.STRIPE_SECRET_KEY || 'sk_test_51MockStripeKeyForDevelopmentPurposesOnlyDoNotUse';
     this.stripe = new Stripe(secretKey, {
-      apiVersion: '2024-04-10', // Latest at time of development
+      apiVersion: '2026-05-27.dahlia' as any, // Cast as any to bypass strict literal type matching
     });
   }
 
