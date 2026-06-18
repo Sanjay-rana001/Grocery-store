@@ -27,7 +27,7 @@ const productSchema = zod.object({
   seasonal: zod.boolean().default(false),
   stock: zod.coerce.number().min(0, 'Stock cannot be negative'),
   brand: zod.string().min(1, 'Brand is required'),
-  imageUrl: zod.string().min(1, 'Image URL is required').url('Must be a valid URL'),
+  imageUrl: zod.string().min(1, 'An image upload or URL is required'),
   dietaryVegan: zod.boolean().default(false),
   dietaryGlutenFree: zod.boolean().default(false),
   dietaryKeto: zod.boolean().default(false),
@@ -68,27 +68,28 @@ export default function AdminProductsPage() {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     setIsUploading(true);
-    setUploadProgress(0);
+    setUploadProgress(50); // Simulated progress for UX
     
-    const storageRef = ref(storage, `products/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
 
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-        setUploadProgress(progress);
-      },
-      (error) => {
-        console.error('Upload failed', error);
-        setIsUploading(false);
-      },
-      async () => {
-        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-        setValue('imageUrl', downloadURL, { shouldValidate: true });
-        setIsUploading(false);
-      }
-    );
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+      
+      setUploadProgress(100);
+      setValue('imageUrl', data.url, { shouldValidate: true });
+    } catch (error) {
+      console.error('Upload failed', error);
+      alert('Failed to upload image. Please try a valid image URL instead.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   // Open modal for Adding new product

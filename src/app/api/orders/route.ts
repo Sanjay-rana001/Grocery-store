@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const email = searchParams.get('email');
     
-    let orders = email ? await firebaseServices.getOrdersByEmail(email) : await firebaseServices.getOrders();
+    const orders = email ? await firebaseServices.getOrdersByEmail(email) : await firebaseServices.getOrders();
 
     return NextResponse.json(orders);
   } catch (error) {

@@ -85,6 +85,7 @@ export interface User {
   role: 'customer' | 'admin';
   password?: string; // Standard mock login check
   address?: Address;
+  profileImage?: string;
 }
 
 export interface DashboardStats {

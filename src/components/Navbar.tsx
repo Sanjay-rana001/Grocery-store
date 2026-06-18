@@ -129,9 +129,15 @@ export default function Navbar() {
             <div className="relative">
               <button 
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="text-on-surface-variant hover:text-primary transition-all active:scale-90 flex items-center justify-center w-10 h-10 rounded-full hover:bg-surface-container"
+                className={`transition-all active:scale-90 flex items-center justify-center w-10 h-10 rounded-full border-2 border-transparent hover:border-secondary overflow-hidden ${
+                  user?.profileImage ? 'p-0 shadow-sm' : 'text-on-surface-variant hover:text-primary hover:bg-surface-container'
+                }`}
               >
-                <span className="material-symbols-outlined text-[28px]">person</span>
+                {user?.profileImage ? (
+                  <img src={user.profileImage} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="material-symbols-outlined text-[28px]">person</span>
+                )}
               </button>
 
               {/* Profile drop-down menu */}
@@ -160,12 +166,28 @@ export default function Navbar() {
                           </Link>
                         )}
                         <Link
+                          href="/profile"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2.5 text-label-md text-on-surface-variant hover:bg-surface-container transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[20px]">manage_accounts</span>
+                          <span>My Profile</span>
+                        </Link>
+                        <Link
                           href="/checkout"
                           onClick={() => setIsUserMenuOpen(false)}
                           className="flex items-center gap-2.5 px-4 py-2.5 text-label-md text-on-surface-variant hover:bg-surface-container transition-colors"
                         >
                           <span className="material-symbols-outlined text-[20px]">shopping_basket</span>
                           <span>My Checkout</span>
+                        </Link>
+                        <Link
+                          href="/orders"
+                          onClick={() => setIsUserMenuOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2.5 text-label-md text-on-surface-variant hover:bg-surface-container transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[20px]">receipt_long</span>
+                          <span>My Orders</span>
                         </Link>
                         <button
                           onClick={() => {

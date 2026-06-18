@@ -8,7 +8,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as zod from 'zod';
 import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
-import { createOrder } from '@/lib/db';
+import { createOrder } from '@/lib/firebaseServices';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import StripeCheckoutForm from '@/components/StripeCheckoutForm';
+
+// Initialize Stripe outside of component render to avoid recreating the object
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_51MockStripeKeyForDevelopmentPurposesOnlyDoNotUse');
 import { formatCurrency, generateDeliveryDates } from '@/lib/utils';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -33,23 +39,19 @@ export default function CheckoutPage() {
   const { items, getTotals, coupon, couponError, applyCouponCode, removeCouponCode, clearCart } = useCartStore();
   const { user, isAuthenticated, updateAddress } = useAuthStore();
 
-  // Redirect if not authenticated or cart is empty
+  // Redirect if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/auth/login');
-    } else if (items.length === 0) {
-      router.push('/');
     }
-  }, [isAuthenticated, items, router]);
+  }, [isAuthenticated, router]);
 
   // Steps: 1 = Delivery, 2 = Payment, 3 = Confirmation
   const [step, setStep] = useState(1);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [gatewayData, setGatewayData] = useState<{ providerName: string, clientSecret?: string, transactionId?: string } | null>(null);
   const [deliverySlot, setDeliverySlot] = useState({ date: '', time: '' });
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'razorpay' | 'cod'>('stripe');
-  const [stripeForm, setStripeForm] = useState({ cardNumber: '4111 2222 3333 4444', expiry: '12/28', cvv: '123' });
-  const [razorpayBank, setRazorpayBank] = useState('ANZ Bank');
   const [couponVal, setCouponVal] = useState('');
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [step1Address, setStep1Address] = useState<AddressSchemaType | null>(null);
 
   // Future delivery slots generator
@@ -92,7 +94,7 @@ export default function CheckoutPage() {
     }
   }, [user, setValue]);
 
-  if (!isAuthenticated || items.length === 0) {
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-primary">
         <div className="flex flex-col items-center gap-4">
@@ -105,40 +107,86 @@ export default function CheckoutPage() {
     );
   }
 
+  // Empty Cart View
+  if (items.length === 0) {
+    return (
+      <>
+        <Navbar />
+        <main className="min-h-screen pt-32 pb-20 max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop bg-background text-primary flex items-center justify-center">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-[32px] p-8 md:p-12 shadow-[0px_4px_24px_rgba(0,0,0,0.03)] border border-outline-variant/10 text-center max-w-md w-full"
+          >
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+              className="w-24 h-24 rounded-full bg-secondary-container/10 flex items-center justify-center mx-auto mb-6 text-secondary"
+            >
+              <span className="material-symbols-outlined text-[48px]">shopping_basket</span>
+            </motion.div>
+            <h2 className="font-display font-bold text-headline-md mb-2">Oops! No items in your cart</h2>
+            <p className="text-on-surface-variant text-sm mb-8">
+              Your cart is currently empty. Add some fresh groceries to your cart first to proceed with checkout.
+            </p>
+            <Link 
+              href="/"
+              className="inline-flex items-center gap-2 bg-secondary text-white font-bold py-3.5 px-8 rounded-2xl hover:bg-primary transition-all active:scale-95 shadow-md"
+            >
+              <span className="material-symbols-outlined text-[20px]">store</span>
+              Start Shopping
+            </Link>
+          </motion.div>
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
   // Totals calculations
   const { subtotal, tax, shippingFee, discount, total, itemsCount } = getTotals();
 
   // Submit Step 1
-  const handleStep1Submit = (data: AddressSchemaType) => {
+  const proceedToPayment = async (data: AddressSchemaType) => {
     setStep1Address(data);
-    
-    // Save address back to user profile for convenience
-    updateAddress({
-      fullName: data.fullName,
-      street: data.street,
-      city: data.city,
-      postalCode: data.postalCode,
-      country: 'New Zealand',
-      phone: data.phone
-    });
+    updateAddress(data as any);
+    setIsProcessing(true);
 
-    setStep(2);
+    try {
+      const res = await fetch('/api/checkout/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: Math.round(total * 100),
+          currency: 'NZD',
+          orderId: `ORD-${Date.now()}`,
+          customerEmail: user?.email || 'guest@example.com'
+        })
+      });
+
+      const gatewayResponse = await res.json();
+      
+      if (gatewayResponse.error) {
+        alert('Payment Initialization Failed: ' + gatewayResponse.error);
+        setIsProcessing(false);
+        return;
+      }
+
+      setGatewayData(gatewayResponse);
+      setStep(2);
+    } catch (err) {
+      alert('Network error communicating with payment gateway');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  // Process payment Step 2
-  const handlePaymentProcessing = async () => {
-    setIsProcessingPayment(true);
-    // Simulate payment gateway API delay (2 seconds)
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsProcessingPayment(false);
-    setStep(3);
-  };
-
-  // Complete checkout & write to DB Step 3
-  const handlePlaceOrder = async () => {
+  const handlePaymentSuccess = async () => {
     if (!step1Address || !user) return;
+    
+    setIsProcessing(true);
 
-    const orderData = {
+    const newOrder = {
       userEmail: user.email,
       userName: step1Address.fullName,
       items: items,
@@ -160,20 +208,18 @@ export default function CheckoutPage() {
         time: deliverySlot.time
       },
       couponCode: coupon?.code || undefined,
-      paymentMethod
+      paymentMethod: gatewayData?.providerName || 'unknown'
     };
 
     try {
-      const finalOrder = await createOrder(orderData);
-      
-      // Clear Zustand cart
+      const finalOrder = await createOrder(newOrder);
       clearCart();
-      
-      // Redirect to success page
-      router.push(`/order-success?orderId=${finalOrder.id}`);
+      setStep(3);
+      setIsProcessing(false);
     } catch (error) {
       console.error('Failed to place order:', error);
       alert('There was an error placing your order. Please try again.');
+      setIsProcessing(false);
     }
   };
 
@@ -271,7 +317,7 @@ export default function CheckoutPage() {
                   Delivery Information
                 </h2>
 
-                <form onSubmit={handleSubmit(handleStep1Submit)} className="space-y-5">
+                <form onSubmit={handleSubmit(proceedToPayment)} className="space-y-5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Full Name */}
                     <div className="sm:col-span-2">
@@ -418,186 +464,68 @@ export default function CheckoutPage() {
               </motion.div>
             )}
 
-            {/* STEP 2: Payment Method */}
-            {step === 2 && (
+            {/* STEP 2: Payment */}
+            {step === 2 && gatewayData && (
               <motion.div
-                initial={{ opacity: 0, x: 10 }}
+                initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 className="bg-white rounded-[32px] p-6 sm:p-8 shadow-[0px_4px_24px_rgba(0,0,0,0.03)] border border-outline-variant/10"
               >
-                <h2 className="font-display text-headline-md font-bold text-primary mb-6 flex items-center gap-2">
+                <h3 className="font-display font-bold text-headline-sm text-primary mb-6 flex items-center gap-2">
                   <span className="material-symbols-outlined text-secondary text-[26px]">payment</span>
-                  Choose Payment Method
-                </h2>
-
-                <div className="space-y-4">
-                  {/* Stripe Card Selection */}
-                  <div 
-                    onClick={() => setPaymentMethod('stripe')}
-                    className={`p-5 rounded-3xl border-2 transition-all cursor-pointer ${
-                      paymentMethod === 'stripe' ? 'border-secondary bg-secondary-container/5 ring-4 ring-secondary/5' : 'border-outline-variant/35 bg-white hover:border-outline-variant'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-4">
-                      <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-secondary text-[28px]">credit_card</span>
-                        <div>
-                          <p className="font-bold text-sm text-primary">Stripe Payment Gateway</p>
-                          <p className="text-[10px] text-outline font-semibold">Credit/Debit Card (Secured)</p>
-                        </div>
-                      </div>
-                      <input 
-                        type="radio" 
-                        checked={paymentMethod === 'stripe'} 
-                        onChange={() => setPaymentMethod('stripe')}
-                        className="w-5 h-5 accent-secondary"
-                      />
+                  Payment Details
+                </h3>
+                
+                {gatewayData.providerName === 'stripe' && gatewayData.clientSecret ? (
+                  <Elements stripe={stripePromise} options={{ clientSecret: gatewayData.clientSecret, appearance: { theme: 'stripe' } }}>
+                    <StripeCheckoutForm onSuccess={handlePaymentSuccess} totalAmount={total} />
+                  </Elements>
+                ) : gatewayData.providerName === 'mock' ? (
+                  <div className="space-y-6">
+                    <div className="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/20 flex flex-col items-center text-center">
+                      <span className="material-symbols-outlined text-[48px] text-secondary mb-2">science</span>
+                      <h4 className="font-bold text-primary text-lg">Mock Payment Environment</h4>
+                      <p className="text-sm text-outline mt-1 max-w-sm">
+                        You are currently using the mock payment gateway for testing. No real money will be charged.
+                      </p>
                     </div>
 
-                    {paymentMethod === 'stripe' && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="space-y-3 pt-3 border-t border-outline-variant/10 overflow-hidden"
-                      >
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="col-span-3">
-                            <label className="text-[10px] font-bold text-outline block mb-1">Card Number</label>
-                            <input
-                              type="text"
-                              value={stripeForm.cardNumber}
-                              onChange={(e) => setStripeForm({ ...stripeForm, cardNumber: e.target.value })}
-                              className="w-full text-xs p-3 bg-background rounded-xl border border-outline-variant/30 text-primary font-mono"
-                            />
-                          </div>
-                          <div className="col-span-2">
-                            <label className="text-[10px] font-bold text-outline block mb-1">Expiration Date</label>
-                            <input
-                              type="text"
-                              value={stripeForm.expiry}
-                              onChange={(e) => setStripeForm({ ...stripeForm, expiry: e.target.value })}
-                              className="w-full text-xs p-3 bg-background rounded-xl border border-outline-variant/30 text-primary font-mono"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-outline block mb-1">CVV</label>
-                            <input
-                              type="password"
-                              maxLength={3}
-                              value={stripeForm.cvv}
-                              onChange={(e) => setStripeForm({ ...stripeForm, cvv: e.target.value })}
-                              className="w-full text-xs p-3 bg-background rounded-xl border border-outline-variant/30 text-primary font-mono"
-                            />
-                          </div>
-                        </div>
-                        <p className="text-[10px] text-outline font-medium flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[13px] text-secondary">verified_user</span>
-                          Fully simulated sandbox client - secure click is safe.
-                        </p>
-                      </motion.div>
-                    )}
+                    <button
+                      onClick={handlePaymentSuccess}
+                      disabled={isProcessing}
+                      className={`w-full font-bold py-4 rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 ${
+                        isProcessing
+                          ? 'bg-surface-container-low text-outline cursor-wait shadow-none'
+                          : 'bg-primary text-white hover:bg-primary/90 active:scale-95 cursor-pointer'
+                      }`}
+                    >
+                      {isProcessing ? (
+                        <>
+                          <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                          Processing Mock Payment...
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined text-[20px]">lock</span>
+                          Simulate Payment of ${total.toFixed(2)}
+                        </>
+                      )}
+                    </button>
                   </div>
-
-                  {/* Razorpay Option Selection */}
-                  <div 
-                    onClick={() => setPaymentMethod('razorpay')}
-                    className={`p-5 rounded-3xl border-2 transition-all cursor-pointer ${
-                      paymentMethod === 'razorpay' ? 'border-secondary bg-secondary-container/5 ring-4 ring-secondary/5' : 'border-outline-variant/35 bg-white hover:border-outline-variant'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-4">
-                      <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-secondary text-[28px]">account_balance</span>
-                        <div>
-                          <p className="font-bold text-sm text-primary">Razorpay Online Banking</p>
-                          <p className="text-[10px] text-outline font-semibold">NZ Bank Direct Transfer</p>
-                        </div>
-                      </div>
-                      <input 
-                        type="radio" 
-                        checked={paymentMethod === 'razorpay'} 
-                        onChange={() => setPaymentMethod('razorpay')}
-                        className="w-5 h-5 accent-secondary"
-                      />
-                    </div>
-
-                    {paymentMethod === 'razorpay' && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="space-y-3 pt-3 border-t border-outline-variant/10 overflow-hidden"
-                      >
-                        <div>
-                          <label className="text-[10px] font-bold text-outline block mb-1">Select Bank</label>
-                          <select
-                            value={razorpayBank}
-                            onChange={(e) => setRazorpayBank(e.target.value)}
-                            className="w-full text-xs p-3 bg-background rounded-xl border border-outline-variant/30 text-primary font-semibold"
-                          >
-                            <option>ANZ Bank</option>
-                            <option>ASB Bank</option>
-                            <option>Westpac New Zealand</option>
-                            <option>KiwiBank</option>
-                            <option>BNZ (Bank of New Zealand)</option>
-                          </select>
-                        </div>
-                      </motion.div>
-                    )}
+                ) : (
+                  <div className="bg-error/10 text-error p-4 rounded-xl flex items-center gap-3 text-sm font-semibold">
+                    <span className="material-symbols-outlined">error</span>
+                    Unsupported Payment Gateway Configuration.
                   </div>
+                )}
 
-                  {/* Cash on Delivery */}
-                  <div 
-                    onClick={() => setPaymentMethod('cod')}
-                    className={`p-5 rounded-3xl border-2 transition-all cursor-pointer ${
-                      paymentMethod === 'cod' ? 'border-secondary bg-secondary-container/5 ring-4 ring-secondary/5' : 'border-outline-variant/35 bg-white hover:border-outline-variant'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-secondary text-[28px]">payments</span>
-                        <div>
-                          <p className="font-bold text-sm text-primary">Cash on Delivery (COD)</p>
-                          <p className="text-[10px] text-outline font-semibold">Pay with cash at your doorstep</p>
-                        </div>
-                      </div>
-                      <input 
-                        type="radio" 
-                        checked={paymentMethod === 'cod'} 
-                        onChange={() => setPaymentMethod('cod')}
-                        className="w-5 h-5 accent-secondary"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="border-t border-outline-variant/10 pt-6 mt-8 flex justify-between gap-4">
+                <div className="mt-8 flex items-center justify-between pt-6 border-t border-outline-variant/10">
                   <button
-                    type="button"
                     onClick={() => setStep(1)}
-                    className="border border-outline-variant/60 text-primary font-bold py-3.5 px-6 rounded-2xl active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+                    disabled={isProcessing}
+                    className="text-on-surface-variant font-bold hover:text-primary transition-colors text-sm px-4 py-2 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined">arrow_back</span>
-                    <span>Back</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={isProcessingPayment}
-                    onClick={handlePaymentProcessing}
-                    className="bg-secondary text-white font-bold py-3.5 px-8 rounded-2xl hover:bg-primary transition-all active:scale-95 shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-40"
-                  >
-                    {isProcessingPayment ? (
-                      <>
-                        <span className="material-symbols-outlined animate-spin">progress_activity</span>
-                        <span>Authorizing payment...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Process Payment ({formatCurrency(total)})</span>
-                        <span className="material-symbols-outlined">payments</span>
-                      </>
-                    )}
+                    Back to Delivery
                   </button>
                 </div>
               </motion.div>
@@ -636,7 +564,7 @@ export default function CheckoutPage() {
                     <h4 className="font-bold text-primary mt-3 mb-0.5">Payment Authorized via</h4>
                     <p className="text-on-surface-variant text-xs font-bold uppercase flex items-center gap-1">
                       <span className="material-symbols-outlined text-[15px]">done</span>
-                      {paymentMethod}
+                      {gatewayData?.providerName || 'Unknown Gateway'}
                     </p>
                   </div>
                 </div>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { User, Address } from '../lib/types';
 import { auth, googleProvider, appleProvider } from '../lib/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signOut, sendEmailVerification } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signOut, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth';
 
 interface AuthState {
   user: User | null;
@@ -15,6 +15,8 @@ interface AuthState {
   appleLogin: () => Promise<boolean>;
   logout: () => void;
   updateAddress: (address: Address) => Promise<void>;
+  updateProfile: (name: string, address: Address, profileImage?: string) => Promise<{success: boolean; message: string}>;
+  resetPassword: (email: string) => Promise<{success: boolean; message: string}>;
   clearError: () => void;
 }
 
@@ -178,14 +180,54 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   updateAddress: async (address) => {
+    // Legacy support, reroute to updateProfile
     const { user } = get();
     if (!user) return;
+    
+    // Optimistic UI update
     const updatedUser = { ...user, address };
     if (isBrowser) localStorage.setItem('freshmart_session', JSON.stringify(updatedUser));
-    
-    // In a full implementation, you would write a separate API route to handle address updates
-    // For now we just update the client state as before.
     set({ user: updatedUser });
+  },
+
+  updateProfile: async (name: string, address: Address, profileImage?: string) => {
+    const { user } = get();
+    if (!user) return { success: false, message: 'You must be logged in' };
+    
+    set({ isLoading: true, error: null });
+
+    try {
+      const res = await fetch('/api/users/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, name, address, profileImage }),
+      });
+
+      if (!res.ok) {
+        set({ error: 'Failed to update profile.', isLoading: false });
+        return { success: false, message: 'Failed to update profile to the database.' };
+      }
+
+      const updatedUser = await res.json();
+      
+      // Update local storage and state
+      if (isBrowser) localStorage.setItem('freshmart_session', JSON.stringify(updatedUser));
+      set({ user: updatedUser, isLoading: false });
+      
+      return { success: true, message: 'Profile updated successfully!' };
+    } catch (err: any) {
+      set({ error: 'An error occurred during profile update.', isLoading: false });
+      return { success: false, message: 'Network error occurred while updating profile.' };
+    }
+  },
+
+  resetPassword: async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      return { success: true, message: 'Password reset email sent! Check your inbox.' };
+    } catch (error: any) {
+      return { success: false, message: error.message || 'Failed to send password reset email.' };
+    }
   },
 
   clearError: () => set({ error: null })

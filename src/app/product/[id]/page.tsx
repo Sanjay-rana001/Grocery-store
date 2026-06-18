@@ -135,7 +135,7 @@ export default function ProductDetailPage() {
           </span>
           <h2 className="font-display font-bold text-headline-lg text-primary">Product Not Found</h2>
           <p className="text-on-surface-variant max-w-sm mx-auto mt-2 text-sm">
-            We couldn't find the organic item you're looking for. It may have been discontinued or out of stock.
+            We couldn&apos;t find the organic item you&apos;re looking for. It may have been discontinued or out of stock.
           </p>
           <button
             onClick={() => router.push('/')}

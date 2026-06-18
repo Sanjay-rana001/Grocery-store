@@ -52,7 +52,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   addItem: async (product, quantity = 1) => {
     const { items } = get();
     const existingIndex = items.findIndex(item => item.product.id === product.id);
-    let newItems = [...items];
+    const newItems = [...items];
 
     if (existingIndex >= 0) {
       const newQty = newItems[existingIndex].quantity + quantity;

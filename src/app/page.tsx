@@ -454,7 +454,7 @@ function ShopContent() {
                 </span>
                 <h3 className="font-display font-bold text-headline-md text-primary">No products found</h3>
                 <p className="text-on-surface-variant text-sm max-w-sm mx-auto mt-2">
-                  We couldn't find any matches. Try adjusting your filters, searching for something else, or clearing filters.
+                  We couldn&apos;t find any matches. Try adjusting your filters, searching for something else, or clearing filters.
                 </p>
                 <button
                   onClick={handleClearAll}

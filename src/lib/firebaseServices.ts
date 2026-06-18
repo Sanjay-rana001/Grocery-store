@@ -240,9 +240,10 @@ export const getOrderById = async (id: string): Promise<Order | undefined> => {
 };
 
 export const getOrdersByEmail = async (email: string): Promise<Order[]> => {
-  const q = query(ordersCol, where('userEmail', '==', email), orderBy('createdAt', 'desc'));
+  const q = query(ordersCol, where('userEmail', '==', email));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Order));
+  const orders = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Order));
+  return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 };
 
 export const createOrder = async (orderData: Omit<Order, 'id' | 'createdAt' | 'status' | 'trackingNumber' | 'paymentStatus'>): Promise<Order> => {
@@ -372,4 +373,20 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
     dailyRevenue,
     categorySales
   };
+};
+
+// System Settings
+export const getSystemSettings = async () => {
+  const settingsRef = doc(db, 'system', 'settings');
+  const snap = await getDoc(settingsRef);
+  if (snap.exists()) {
+    return snap.data() as { activePaymentProvider: 'stripe' | 'mock' };
+  }
+  // Default fallback if document doesn't exist
+  return { activePaymentProvider: 'mock' };
+};
+
+export const updateSystemSettings = async (settings: { activePaymentProvider: 'stripe' | 'mock' }) => {
+  const settingsRef = doc(db, 'system', 'settings');
+  await setDoc(settingsRef, settings, { merge: true });
 };

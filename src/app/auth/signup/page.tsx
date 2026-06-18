@@ -69,7 +69,7 @@ export default function SignupPage() {
           <span className="material-symbols-outlined text-[64px] text-secondary fill-1 mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>mark_email_read</span>
           <h2 className="text-xl font-bold text-primary font-display mb-2">Check Your Email</h2>
           <p className="text-xs text-outline font-medium mb-8 leading-relaxed">
-            We've sent a secure verification link to your email address. Please check your inbox (and spam folder) and click the link to activate your account.
+            We&apos;ve sent a secure verification link to your email address. Please check your inbox (and spam folder) and click the link to activate your account.
           </p>
           <Link href="/auth/login" className="bg-secondary text-white font-bold py-3.5 px-6 rounded-2xl flex w-full items-center justify-center hover:bg-primary transition-all active:scale-95 shadow-md">
             Go to Login
