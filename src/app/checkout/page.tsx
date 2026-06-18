@@ -180,6 +180,14 @@ export default function CheckoutPage() {
 
     try {
       const finalOrder = await createOrder(newOrder);
+      
+      // Fire off the confirmation email in the background (non-blocking)
+      fetch('/api/emails/order-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newOrder, id: finalOrder.id || newOrder.id }) // Ensure ID is passed
+      }).catch(err => console.error("Background email trigger failed:", err));
+
       clearCart();
       router.push('/orders');
       setIsProcessing(false);

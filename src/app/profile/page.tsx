@@ -103,26 +103,26 @@ export default function ProfilePage() {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !user) return;
 
     setIsUploadingImage(true);
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('folder', 'profiles');
 
     try {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.url) {
-        setProfileImage(data.url);
-      } else {
-        alert(data.error || 'Failed to upload image');
-      }
+      // Import client storage
+      const { storage } = await import('@/lib/firebase');
+      const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
+      
+      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      const filename = `profiles/${uniqueSuffix}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+      const storageRef = ref(storage, filename);
+      
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      
+      setProfileImage(url);
     } catch (err) {
-      alert('An error occurred while uploading.');
+      console.error('Firebase Client Upload Error:', err);
+      alert('An error occurred while uploading. Ensure your Firebase Storage Rules allow uploads.');
     } finally {
       setIsUploadingImage(false);
     }
