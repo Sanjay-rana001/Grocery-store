@@ -92,12 +92,9 @@ export default function CheckoutPage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-primary">
-        <div className="flex flex-col items-center gap-4">
-          <span className="material-symbols-outlined text-[48px] animate-spin text-secondary">
-            progress_activity
-          </span>
-          <p className="font-semibold text-sm">Verifying shopping cart status...</p>
-        </div>
+        <span className="material-symbols-outlined text-[48px] animate-bounce text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>
+          shopping_basket
+        </span>
       </div>
     );
   }

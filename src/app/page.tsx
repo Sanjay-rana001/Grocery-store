@@ -440,12 +440,10 @@ function ShopContent() {
 
             {/* Cards Grid */}
             {isLoading ? (
-              <div className="bg-white rounded-[32px] py-24 px-6 text-center shadow-[0px_4px_20px_rgba(0,0,0,0.02)] border border-outline-variant/10 flex flex-col items-center justify-center min-h-[400px]">
-                <span className="material-symbols-outlined text-[48px] animate-spin text-secondary mb-4">
-                  progress_activity
+              <div className="flex items-center justify-center min-h-[400px] w-full">
+                <span className="material-symbols-outlined text-[48px] animate-bounce text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  shopping_basket
                 </span>
-                <h3 className="font-display font-bold text-headline-md text-primary">Harvesting fresh groceries...</h3>
-                <p className="text-on-surface-variant text-sm mt-2">Connecting to local farmers in New Zealand.</p>
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="bg-white rounded-[32px] py-16 px-6 text-center shadow-[0px_4px_20px_rgba(0,0,0,0.02)] border border-outline-variant/10">
@@ -695,11 +693,10 @@ export default function ShopPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-background text-primary">
-        <div className="flex flex-col items-center gap-4">
-          <span className="material-symbols-outlined text-[48px] animate-spin text-secondary">
-            progress_activity
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[100]">
+          <span className="material-symbols-outlined text-[48px] animate-bounce text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>
+            shopping_basket
           </span>
-          <p className="font-semibold text-sm">Harvesting fresh groceries...</p>
         </div>
       </div>
     }>

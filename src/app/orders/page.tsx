@@ -121,12 +121,9 @@ export default function OrdersPage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa] text-primary">
-        <div className="flex flex-col items-center gap-4">
-          <span className="material-symbols-outlined text-[48px] animate-spin text-secondary">
-            progress_activity
-          </span>
-          <p className="font-semibold text-sm">Redirecting to login...</p>
-        </div>
+        <span className="material-symbols-outlined text-[48px] animate-bounce text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>
+          shopping_basket
+        </span>
       </div>
     );
   }
@@ -154,12 +151,10 @@ export default function OrdersPage() {
         </div>
 
         {isLoading ? (
-          <div className="bg-white rounded-[32px] py-24 px-6 text-center shadow-[0px_4px_20px_rgba(0,0,0,0.02)] border border-outline-variant/10 flex flex-col items-center justify-center min-h-[400px]">
-            <span className="material-symbols-outlined text-[48px] animate-spin text-secondary mb-4">
-              progress_activity
+          <div className="flex items-center justify-center min-h-[400px] w-full">
+            <span className="material-symbols-outlined text-[48px] animate-bounce text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>
+              shopping_basket
             </span>
-            <h3 className="font-display font-bold text-headline-md text-primary">Loading your history...</h3>
-            <p className="text-on-surface-variant text-sm mt-2">Retrieving orders from FreshMart NZ.</p>
           </div>
         ) : orders.length === 0 ? (
           <div className="bg-white rounded-[32px] py-16 px-6 text-center shadow-[0px_4px_20px_rgba(0,0,0,0.02)] border border-outline-variant/10">
