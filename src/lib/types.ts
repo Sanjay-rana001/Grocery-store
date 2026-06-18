@@ -72,7 +72,7 @@ export interface Order {
   address: Address;
   deliverySlot: DeliverySlot;
   couponCode?: string;
-  paymentMethod: 'stripe' | 'razorpay' | 'cod';
+  paymentMethod: string; // Dynamic based on pluggable gateway (e.g. 'stripe', 'mock', 'paypal')
   paymentStatus: 'pending' | 'paid' | 'failed';
   trackingNumber: string;
   createdAt: string;
