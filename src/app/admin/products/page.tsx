@@ -68,26 +68,35 @@ export default function AdminProductsPage() {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     setIsUploading(true);
-    setUploadProgress(50); // Simulated progress for UX
+    setUploadProgress(0);
     
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) throw new Error('Upload failed');
-      const data = await res.json();
+      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      const filename = `products/${uniqueSuffix}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+      const storageRef = ref(storage, filename);
       
-      setUploadProgress(100);
-      setValue('imageUrl', data.url, { shouldValidate: true });
+      const uploadTask = uploadBytesResumable(storageRef, file);
+      
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(Math.round(progress));
+        }, 
+        (error) => {
+          console.error('Upload failed', error);
+          alert('Failed to upload image. Please ensure your Firebase Storage rules allow uploads.');
+          setIsUploading(false);
+        }, 
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          setUploadProgress(100);
+          setValue('imageUrl', downloadURL, { shouldValidate: true });
+          setIsUploading(false);
+        }
+      );
     } catch (error) {
       console.error('Upload failed', error);
-      alert('Failed to upload image. Please try a valid image URL instead.');
-    } finally {
+      alert('Failed to start image upload.');
       setIsUploading(false);
     }
   };
