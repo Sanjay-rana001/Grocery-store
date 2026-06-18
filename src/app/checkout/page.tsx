@@ -9,12 +9,7 @@ import * as zod from 'zod';
 import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { createOrder } from '@/lib/firebaseServices';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
-import StripeCheckoutForm from '@/components/StripeCheckoutForm';
 
-// Initialize Stripe outside of component render to avoid recreating the object
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_51MockStripeKeyForDevelopmentPurposesOnlyDoNotUse');
 import { formatCurrency, generateDeliveryDates } from '@/lib/utils';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -49,7 +44,6 @@ export default function CheckoutPage() {
   // Steps: 1 = Delivery, 2 = Payment, 3 = Confirmation
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [gatewayData, setGatewayData] = useState<{ providerName: string, clientSecret?: string, transactionId?: string } | null>(null);
   const [deliverySlot, setDeliverySlot] = useState({ date: '', time: '' });
   const [selectedMethod, setSelectedMethod] = useState<'card' | 'cod'>('card');
   const [couponVal, setCouponVal] = useState('');
@@ -151,35 +145,7 @@ export default function CheckoutPage() {
   const proceedToPayment = async (data: AddressSchemaType) => {
     setStep1Address(data);
     updateAddress(data as any);
-    setIsProcessing(true);
-
-    try {
-      const res = await fetch('/api/checkout/process', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: Math.round(total * 100),
-          currency: 'NZD',
-          orderId: `ORD-${Date.now()}`,
-          customerEmail: user?.email || 'guest@example.com'
-        })
-      });
-
-      const gatewayResponse = await res.json();
-      
-      if (gatewayResponse.error) {
-        alert('Payment Initialization Failed: ' + gatewayResponse.error);
-        setIsProcessing(false);
-        return;
-      }
-
-      setGatewayData(gatewayResponse);
-      setStep(2);
-    } catch (err) {
-      alert('Network error communicating with payment gateway');
-    } finally {
-      setIsProcessing(false);
-    }
+    setStep(2);
   };
 
   const handlePaymentSuccess = async () => {
@@ -209,7 +175,7 @@ export default function CheckoutPage() {
         time: deliverySlot.time
       },
       couponCode: coupon?.code || undefined,
-      paymentMethod: selectedMethod === 'cod' ? 'cod' : (gatewayData?.providerName || 'unknown')
+      paymentMethod: selectedMethod === 'cod' ? 'cod' : 'mock_online'
     };
 
     try {
@@ -466,7 +432,7 @@ export default function CheckoutPage() {
             )}
 
             {/* STEP 2: Payment */}
-            {step === 2 && gatewayData && (
+            {step === 2 && (
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -529,50 +495,37 @@ export default function CheckoutPage() {
 
                 {/* Gateway / Action Area */}
                 {selectedMethod === 'card' ? (
-                  <>
-                    {gatewayData.providerName === 'stripe' && gatewayData.clientSecret ? (
-                      <Elements stripe={stripePromise} options={{ clientSecret: gatewayData.clientSecret, appearance: { theme: 'stripe' } }}>
-                        <StripeCheckoutForm onSuccess={handlePaymentSuccess} totalAmount={total} />
-                      </Elements>
-                    ) : gatewayData.providerName === 'mock' ? (
-                      <div className="space-y-6">
-                        <div className="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/20 flex flex-col items-center text-center">
-                          <span className="material-symbols-outlined text-[48px] text-secondary mb-2">science</span>
-                          <h4 className="font-bold text-primary text-lg">Mock Payment Environment</h4>
-                          <p className="text-sm text-outline mt-1 max-w-sm">
-                            You are currently using the mock payment gateway for testing. No real money will be charged.
-                          </p>
-                        </div>
+                  <div className="space-y-6">
+                    <div className="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/20 flex flex-col items-center text-center">
+                      <span className="material-symbols-outlined text-[48px] text-secondary mb-2">science</span>
+                      <h4 className="font-bold text-primary text-lg">Mock Payment Environment</h4>
+                      <p className="text-sm text-outline mt-1 max-w-sm">
+                        You are currently using the mock payment gateway for testing. No real money will be charged.
+                      </p>
+                    </div>
 
-                        <button
-                          onClick={handlePaymentSuccess}
-                          disabled={isProcessing}
-                          className={`w-full font-bold py-4 rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 ${
-                            isProcessing
-                              ? 'bg-surface-container-low text-outline cursor-wait shadow-none'
-                              : 'bg-primary text-white hover:bg-primary/90 active:scale-95 cursor-pointer'
-                          }`}
-                        >
-                          {isProcessing ? (
-                            <>
-                              <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
-                              Processing Mock Payment...
-                            </>
-                          ) : (
-                            <>
-                              <span className="material-symbols-outlined text-[20px]">lock</span>
-                              Simulate Payment of ${total.toFixed(2)}
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="bg-error/10 text-error p-4 rounded-xl flex items-center gap-3 text-sm font-semibold">
-                        <span className="material-symbols-outlined">error</span>
-                        Unsupported Payment Gateway Configuration.
-                      </div>
-                    )}
-                  </>
+                    <button
+                      onClick={handlePaymentSuccess}
+                      disabled={isProcessing}
+                      className={`w-full font-bold py-4 rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 ${
+                        isProcessing
+                          ? 'bg-surface-container-low text-outline cursor-wait shadow-none'
+                          : 'bg-primary text-white hover:bg-primary/90 active:scale-95 cursor-pointer'
+                      }`}
+                    >
+                      {isProcessing ? (
+                        <>
+                          <span className="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                          Processing Mock Payment...
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined text-[20px]">lock</span>
+                          Simulate Payment of ${total.toFixed(2)}
+                        </>
+                      )}
+                    </button>
+                  </div>
                 ) : (
                   <div className="pt-2">
                     <button
@@ -611,66 +564,6 @@ export default function CheckoutPage() {
               </motion.div>
             )}
 
-            {/* STEP 3: Confirmation Summary */}
-            {step === 3 && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-[32px] p-6 sm:p-8 shadow-[0px_4px_24px_rgba(0,0,0,0.03)] border border-outline-variant/10 text-center"
-              >
-                <span className="w-16 h-16 rounded-full bg-secondary-container/20 flex items-center justify-center text-secondary mx-auto mb-4 animate-bounce">
-                  <span className="material-symbols-outlined text-[36px] fill-1" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    verified
-                  </span>
-                </span>
-                <h2 className="font-display text-headline-lg font-bold text-primary mb-2">Order Confirmed</h2>
-                <p className="text-on-surface-variant text-sm max-w-sm mx-auto mb-6">
-                  Your simulated payment was authorized successfully. Please review the details below before placing your final order.
-                </p>
-
-                {/* Final summaries box */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left border border-outline-variant/15 p-5 rounded-2xl bg-surface-container-low/40 mb-6 text-sm">
-                  <div>
-                    <h4 className="font-bold text-primary mb-1">Delivery Address</h4>
-                    <p className="text-on-surface-variant font-medium">{step1Address?.fullName}</p>
-                    <p className="text-on-surface-variant text-xs">{step1Address?.street}</p>
-                    <p className="text-on-surface-variant text-xs">{step1Address?.city}, NZ {step1Address?.postalCode}</p>
-                    <p className="text-on-surface-variant text-xs font-semibold mt-1">Phone: {step1Address?.phone}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-primary mb-1">Delivery Slot</h4>
-                    <p className="text-secondary font-bold">{deliverySlot.date}</p>
-                    <p className="text-on-surface-variant text-xs font-semibold">{deliverySlot.time}</p>
-                    <h4 className="font-bold text-primary mt-3 mb-0.5">Payment Authorized via</h4>
-                    <p className="text-on-surface-variant text-xs font-bold uppercase flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[15px]">done</span>
-                      {selectedMethod === 'cod' ? 'Cash on Delivery' : (gatewayData?.providerName || 'Unknown Gateway')}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-4">
-                  <button
-                    type="button"
-                    onClick={() => router.push('/orders')}
-                    className="border border-outline-variant/60 text-primary font-bold py-3.5 px-6 rounded-2xl active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
-                  >
-                    <span className="material-symbols-outlined">receipt_long</span>
-                    <span>View Orders</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => router.push('/')}
-                    className="flex-1 bg-secondary text-white font-extrabold py-3.5 px-8 rounded-2xl hover:bg-primary transition-all active:scale-95 shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>Continue Shopping</span>
-                    <span className="material-symbols-outlined">storefront</span>
-                  </button>
-                </div>
-              </motion.div>
-            )}
           </div>
 
           {/* Checkout Right Side: Order Summary Panel */}
