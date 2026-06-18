@@ -113,7 +113,7 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
           </a>
           <button
             onClick={handleWishlist}
-            className={`transition-colors flex-shrink-0 active:scale-90 ${wishlisted ? 'text-error' : 'text-on-surface-variant/50 hover:text-error'}`}
+            className={`transition-colors flex-shrink-0 active:scale-90 ${wishlisted ? 'text-pink-500' : 'text-on-surface-variant/50 hover:text-pink-500'}`}
           >
             <span
               className="material-symbols-outlined text-[14px] lg:text-[22px]"
@@ -132,14 +132,14 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
             {[1, 2, 3, 4, 5].map(star => (
               <span
                 key={star}
-                className="material-symbols-outlined text-[8px] lg:text-[14px]"
+                className="material-symbols-outlined text-[10px] lg:text-[14px] scale-[0.6] lg:scale-100 origin-left -mx-0.5 lg:mx-0"
                 style={{ fontVariationSettings: star <= Math.round(product.ratings) ? "'FILL' 1" : "'FILL' 0" }}
               >
                 star
               </span>
             ))}
           </div>
-          <span className="text-[8px] lg:text-[11px] text-outline">({product.reviewsCount})</span>
+          <span className="text-[7px] lg:text-[11px] text-outline ml-1 lg:ml-0">({product.reviewsCount})</span>
         </div>
 
         <div className="flex items-center justify-between mt-auto pt-1 lg:pt-0">
