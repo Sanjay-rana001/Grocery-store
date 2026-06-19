@@ -294,12 +294,12 @@ export default function AdminDashboard() {
                       <td className="p-4">
                         <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold border ${
                           order.status === 'delivered' 
-                            ? 'bg-secondary-container/10 border-secondary-container/30 text-secondary' 
-                            : order.status === 'shipping' 
+                            ? 'bg-secondary-container/10 border-secondary-container/30 text-on-secondary-container' 
+                            : order.status === 'shipped' 
                               ? 'bg-primary-fixed/20 border-primary-fixed/30 text-primary'
-                              : order.status === 'packing'
+                              : order.status === 'packed'
                                 ? 'bg-amber-100 border-amber-200 text-amber-800'
-                                : 'bg-surface-container border-outline-variant/20 text-outline'
+                                : 'bg-surface-container border-outline-variant/30 text-on-surface-variant'
                         }`}>
                           <span className="w-1.5 h-1.5 rounded-full bg-current" />
                           <span className="capitalize">{order.status}</span>

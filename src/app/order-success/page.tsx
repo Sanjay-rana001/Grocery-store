@@ -50,7 +50,7 @@ export default function OrderSuccessPage() {
     );
   }
 
-  const statusSteps = ['pending', 'packing', 'shipping', 'delivered'];
+  const statusSteps = ['pending', 'packed', 'shipped', 'delivered'];
   const currentStep = statusSteps.indexOf(order.status);
 
   return (

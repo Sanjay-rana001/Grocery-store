@@ -57,7 +57,7 @@ export default function OrdersPage() {
       .filter(o => o.paymentStatus === 'paid' || o.paymentMethod === 'cod')
       .reduce((acc, o) => acc + o.total, 0);
     const active = orders.filter(
-      o => o.status === 'pending' || o.status === 'packing' || o.status === 'shipping'
+      o => o.status === 'pending' || o.status === 'packed' || o.status === 'shipped'
     ).length;
 
     return { total, spent, active };

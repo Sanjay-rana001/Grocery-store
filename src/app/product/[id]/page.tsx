@@ -444,31 +444,8 @@ export default function ProductDetailPage() {
               ) : (
                 <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
                   {(product.reviews || []).map((rev) => (
-                    <div key={rev.id} className="bg-background/45 p-5 rounded-2xl border border-outline-variant/10 shadow-sm relative">
-                      {user && user.id === rev.userId && (
-                        <div className="absolute top-4 right-4 flex items-center gap-3">
-                          <button
-                            onClick={() => {
-                              setEditingReviewId(rev.id);
-                              setReviewRating(rev.rating);
-                              setReviewComment(rev.comment);
-                              document.getElementById('review-form-section')?.scrollIntoView({ behavior: 'smooth' });
-                            }}
-                            className="text-[11px] font-bold text-secondary hover:text-primary transition-colors cursor-pointer flex items-center gap-1"
-                          >
-                            <span className="material-symbols-outlined text-[14px]">edit</span>
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteReview(rev.id)}
-                            className="text-[11px] font-bold text-error/80 hover:text-error transition-colors cursor-pointer flex items-center gap-1"
-                          >
-                            <span className="material-symbols-outlined text-[14px]">delete</span>
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                      <div className="flex justify-between items-start mb-2 gap-2 pr-12">
+                    <div key={rev.id} className="bg-background/45 p-5 rounded-2xl border border-outline-variant/10 shadow-sm flex flex-col h-full">
+                      <div className="flex justify-between items-start mb-2 gap-2">
                         <div>
                           <h4 className="font-bold text-sm text-primary">{rev.userName}</h4>
                           <span className="text-[10px] font-semibold text-outline">{formatDate(rev.date)}</span>
@@ -488,9 +465,34 @@ export default function ProductDetailPage() {
                           ))}
                         </div>
                       </div>
-                      <p className="text-sm text-on-surface-variant font-medium mt-1 leading-relaxed">
+                      <p className="text-sm text-on-surface-variant font-medium mt-1 leading-relaxed flex-grow">
                         {rev.comment}
                       </p>
+
+                      {/* Action Buttons for Review Owner */}
+                      {user && user.id === rev.userId && (
+                        <div className="mt-3 flex items-center justify-end gap-4 pt-3 border-t border-outline-variant/10">
+                          <button
+                            onClick={() => {
+                              setEditingReviewId(rev.id);
+                              setReviewRating(rev.rating);
+                              setReviewComment(rev.comment);
+                              document.getElementById('review-form-section')?.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                            className="text-[11px] font-bold text-secondary hover:text-primary transition-colors cursor-pointer flex items-center gap-1.5 bg-secondary/5 px-3 py-1.5 rounded-lg active:scale-95"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">edit</span>
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteReview(rev.id)}
+                            className="text-[11px] font-bold text-error hover:text-error/80 transition-colors cursor-pointer flex items-center gap-1.5 bg-error/5 px-3 py-1.5 rounded-lg active:scale-95"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">delete</span>
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
