@@ -366,8 +366,8 @@ export default function ProductDetailPage() {
             </div>
 
             {/* Quantity Selector & Add to Cart */}
-            <div className="flex gap-4 items-center border-t border-outline-variant/10 pt-6">
-              <div className="flex items-center bg-surface-container rounded-2xl p-1 border border-outline-variant/10">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center border-t border-outline-variant/10 pt-6">
+              <div className="flex items-center justify-between sm:justify-start bg-surface-container rounded-2xl p-1 border border-outline-variant/10">
                 <button
                   disabled={quantity <= 1 || product.stock === 0}
                   onClick={() => setQuantity(prev => prev - 1)}
@@ -602,9 +602,9 @@ export default function ProductDetailPage() {
             
             {/* Carousel Container */}
             <div className="relative -mx-margin-mobile px-margin-mobile lg:-mx-margin-desktop lg:px-margin-desktop overflow-hidden">
-              <div className="flex gap-4 lg:gap-6 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-8">
+              <div className="flex gap-3 sm:gap-4 lg:gap-6 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-8">
                 {relatedProducts.map((p) => (
-                  <div key={p.id} className="snap-start flex-shrink-0 w-[260px] md:w-[280px]">
+                  <div key={p.id} className="snap-start flex-shrink-0 w-[180px] sm:w-[260px] md:w-[280px]">
                     <ProductCard product={p} />
                   </div>
                 ))}
