@@ -35,6 +35,7 @@ export async function POST() {
     }
 
     return NextResponse.json({ success: true, count: syncedCount, total: users.length });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('Firebase Auth Sync Error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getAdminStorage } from '@/lib/firebaseAdmin';
+import { writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
+import { existsSync } from 'fs';
 
 export async function POST(request: Request) {
   try {
@@ -16,22 +18,23 @@ export async function POST(request: Request) {
 
     // Create unique filename
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const filename = `${folder}/${uniqueSuffix}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.]/g, '');
+    const filename = `${uniqueSuffix}-${sanitizedName}`;
     
-    // Upload to Firebase Storage via Admin SDK (bypasses security rules)
-    const bucket = getAdminStorage().bucket();
-    const fileRef = bucket.file(filename);
+    // Ensure upload directory exists
+    const uploadDir = join(process.cwd(), 'public', 'uploads', folder);
+    if (!existsSync(uploadDir)) {
+      await mkdir(uploadDir, { recursive: true });
+    }
     
-    await fileRef.save(buffer, {
-      metadata: { contentType: file.type }
-    });
+    const filePath = join(uploadDir, filename);
+    await writeFile(filePath, buffer);
     
-    await fileRef.makePublic(); // Make the file publicly accessible
-    const url = fileRef.publicUrl();
+    const url = `/uploads/${folder}/${filename}`;
     
     return NextResponse.json({ url });
   } catch (error) {
-    console.error('Firebase Admin Upload Error:', error);
-    return NextResponse.json({ error: 'Failed to upload file to database storage.' }, { status: 500 });
+    console.error('Local Upload Error:', error);
+    return NextResponse.json({ error: 'Failed to upload file to local storage.' }, { status: 500 });
   }
 }

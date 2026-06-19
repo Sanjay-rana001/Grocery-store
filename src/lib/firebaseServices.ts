@@ -1,6 +1,28 @@
-import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, where, runTransaction, orderBy } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, where, runTransaction, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
-import { Product, User, Order, Coupon, DashboardStats, OrderStatus, Review } from './types';
+import { Product, User, Order, Coupon, DashboardStats, OrderStatus, Review, Category } from './types';
+
+// ==========================================
+// CATEGORIES CRUD OPERATIONS
+// ==========================================
+const categoriesCol = collection(db, 'categories');
+
+export const getCategories = async (): Promise<Category[]> => {
+  const q = query(categoriesCol, orderBy('order', 'asc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Category));
+};
+
+export const saveCategory = async (category: Category): Promise<Category> => {
+  const docRef = doc(db, 'categories', category.id);
+  await setDoc(docRef, category, { merge: true });
+  return category;
+};
+
+export const deleteCategory = async (id: string): Promise<void> => {
+  const docRef = doc(db, 'categories', id);
+  await deleteDoc(docRef);
+};
 
 // ==========================================
 // PRODUCTS CRUD OPERATIONS
@@ -52,6 +74,21 @@ export const decrementStock = async (productId: string, quantity: number): Promi
       const data = docSnap.data() as Product;
       if (data.stock < quantity) throw new Error('Insufficient stock');
       transaction.update(docRef, { stock: data.stock - quantity });
+    });
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+export const incrementStock = async (productId: string, quantity: number): Promise<boolean> => {
+  try {
+    const docRef = doc(db, 'products', productId);
+    await runTransaction(db, async (transaction) => {
+      const docSnap = await transaction.get(docRef);
+      if (!docSnap.exists()) throw new Error('Product not found');
+      const data = docSnap.data() as Product;
+      transaction.update(docRef, { stock: data.stock + quantity });
     });
     return true;
   } catch (error) {
@@ -130,6 +167,48 @@ export const editProductReview = async (productId: string, reviewId: string, use
     return updatedReview;
   } catch (error) {
     return null;
+  }
+};
+
+export const deleteProductReview = async (productId: string, reviewId: string, userId: string): Promise<boolean> => {
+  try {
+    const docRef = doc(db, 'products', productId);
+    let success = false;
+    
+    await runTransaction(db, async (transaction) => {
+      const docSnap = await transaction.get(docRef);
+      if (!docSnap.exists()) throw new Error('Product not found');
+      const data = docSnap.data() as Product;
+      
+      const reviews = data.reviews || [];
+      const reviewIndex = reviews.findIndex(r => r.id === reviewId);
+      
+      if (reviewIndex === -1) throw new Error('Review not found');
+      
+      // Strict Security Authorization Check
+      if (reviews[reviewIndex].userId !== userId) {
+        throw new Error('Unauthorized: You can only delete your own reviews.');
+      }
+
+      // Remove the review
+      reviews.splice(reviewIndex, 1);
+
+      // Recalculate average rating
+      const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
+      const newRatings = reviews.length > 0 ? parseFloat((totalRating / reviews.length).toFixed(1)) : 5.0; // Default to 5.0 if no reviews
+
+      transaction.update(docRef, {
+        reviews,
+        reviewsCount: reviews.length,
+        ratings: newRatings
+      });
+      
+      success = true;
+    });
+    return success;
+  } catch (error) {
+    console.error('Failed to delete review:', error);
+    return false;
   }
 };
 
@@ -246,6 +325,23 @@ export const getOrdersByEmail = async (email: string): Promise<Order[]> => {
   return orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 };
 
+export const subscribeToOrders = (callback: (orders: Order[]) => void) => {
+  const q = query(ordersCol, orderBy('createdAt', 'desc'));
+  return onSnapshot(q, (snapshot) => {
+    const orders = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Order));
+    callback(orders);
+  });
+};
+
+export const subscribeToCustomerOrders = (email: string, callback: (orders: Order[]) => void) => {
+  const q = query(ordersCol, where('userEmail', '==', email));
+  return onSnapshot(q, (snapshot) => {
+    const orders = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Order));
+    orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    callback(orders);
+  });
+};
+
 export const createOrder = async (orderData: Omit<Order, 'id' | 'createdAt' | 'status' | 'trackingNumber' | 'paymentStatus'>): Promise<Order> => {
   const newId = `FM-${Math.floor(1000 + Math.random() * 9000)}-${Date.now().toString().slice(-4)}`;
   const trackingNumber = `TRK${Math.floor(100000 + Math.random() * 900000)}`;
@@ -262,35 +358,50 @@ export const createOrder = async (orderData: Omit<Order, 'id' | 'createdAt' | 's
   const docRef = doc(db, 'orders', newId);
   await setDoc(docRef, newOrder);
 
-  for (const item of newOrder.items) {
-     await decrementStock(item.product.id, item.quantity);
-  }
+  // Run all stock decrements concurrently to significantly speed up order placement
+  await Promise.all(
+    newOrder.items.map(item => decrementStock(item.product.id, item.quantity))
+  );
 
   return newOrder;
-};
-
-export const updateOrderStatus = async (orderId: string, status: OrderStatus): Promise<boolean> => {
-  try {
-    const docRef = doc(db, 'orders', orderId);
-    const updateData: any = { status };
-    if (status === 'delivered') {
-      updateData.paymentStatus = 'paid';
-    }
-    await updateDoc(docRef, updateData);
-    return true;
-  } catch (error) {
-    return false;
-  }
 };
 
 export const updateOrder = async (orderId: string, orderData: Partial<Order>): Promise<boolean> => {
   try {
     const docRef = doc(db, 'orders', orderId);
+
+    const orderSnap = await getDoc(docRef);
+    if (orderSnap.exists()) {
+      const existingOrder = orderSnap.data() as Order;
+      const oldStatus = existingOrder.status;
+      const newStatus = orderData.status || oldStatus;
+      const oldItems = existingOrder.items;
+      const newItems = orderData.items || oldItems;
+
+      // Only adjust stock if the cancellation status changes
+      if (oldStatus !== 'cancelled' && newStatus === 'cancelled' && oldItems) {
+        // Order is being cancelled: Restock items
+        await Promise.all(oldItems.map(item => incrementStock(item.product.id, item.quantity)));
+      } else if (oldStatus === 'cancelled' && newStatus !== 'cancelled' && newItems) {
+        // Order is being un-cancelled: Deduct items
+        await Promise.all(newItems.map(item => decrementStock(item.product.id, item.quantity)));
+      }
+    }
+
     await updateDoc(docRef, orderData);
     return true;
   } catch (error) {
+    console.error('Failed to update order in firebase:', error);
     return false;
   }
+};
+
+export const updateOrderStatus = async (orderId: string, status: OrderStatus): Promise<boolean> => {
+  const updateData: Partial<Order> = { status };
+  if (status === 'delivered') {
+    updateData.paymentStatus = 'paid';
+  }
+  return await updateOrder(orderId, updateData);
 };
 
 export const deleteOrder = async (orderId: string): Promise<boolean> => {
@@ -340,18 +451,26 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
     amount: parseFloat(dailyRevMap[date].toFixed(2))
   }));
 
-  const catSalesMap: { [cat: string]: number } = {
-    Products: 0, meat: 0, dairy: 0, pantry: 0, bakery: 0
-  };
+  const allCategories = await getCategories();
+  const catSalesMap: { [cat: string]: number } = {};
+  allCategories.forEach(c => {
+    catSalesMap[c.name] = 0;
+  });
+  catSalesMap['Uncategorized'] = 0;
 
   orders.forEach(o => {
     if (o.status === 'delivered' || o.paymentStatus === 'paid') {
       o.items.forEach(item => {
-        const cat = item.product.category;
+        const catId = item.product.categoryId || item.product.category || 'Uncategorized';
+        // find category name
+        const categoryObj = allCategories.find(c => c.id === catId);
+        const catName = categoryObj ? categoryObj.name : catId;
+        
         const itemRevenue = item.product.price * item.quantity;
-        if (catSalesMap[cat] !== undefined) {
-          catSalesMap[cat] += itemRevenue;
+        if (catSalesMap[catName] === undefined) {
+          catSalesMap[catName] = 0;
         }
+        catSalesMap[catName] += itemRevenue;
       });
     }
   });

@@ -1,26 +1,31 @@
 import { create } from 'zustand';
-import { Product, Order, User, Coupon, DashboardStats, OrderStatus, Review } from '../lib/types';
+import { Product, Order, User, Coupon, DashboardStats, OrderStatus, Review, Category } from '../lib/types';
 import * as db from '../lib/db';
+import { subscribeToOrders, deleteOrder as firebaseDeleteOrder, updateOrderStatus as firebaseUpdateOrderStatus, updateOrder as firebaseUpdateOrder } from '../lib/firebaseServices';
 
 interface AdminState {
   products: Product[];
   orders: Order[];
   users: User[];
   coupons: Coupon[];
+  categories: Category[];
   stats: DashboardStats | null;
   isLoading: boolean;
 
   loadAllData: () => Promise<void>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<boolean>;
   updateOrder: (orderId: string, orderData: Partial<Order>) => Promise<boolean>;
-  deleteOrder: (orderId: string) => Promise<boolean>;
+  initializeRealtimeOrders: () => () => void;
   createOrder: (orderData: Omit<Order, 'id' | 'createdAt' | 'status' | 'trackingNumber' | 'paymentStatus'>) => Promise<Order | null>;
+  saveCategory: (category: Category) => Promise<void>;
+  deleteCategory: (categoryId: string) => Promise<boolean>;
   saveProduct: (product: Product) => Promise<void>;
   deleteProduct: (productId: string) => Promise<boolean>;
   saveCoupon: (coupon: Coupon) => Promise<void>;
   deleteCoupon: (code: string) => Promise<boolean>;
   addReview: (productId: string, rating: number, comment: string, userName: string, userId: string) => Promise<Review | null>;
   editReview: (productId: string, reviewId: string, userId: string, rating: number, comment: string) => Promise<Review | null>;
+  deleteReview: (productId: string, reviewId: string, userId: string) => Promise<boolean>;
 }
 
 export const useAdminStore = create<AdminState>((set, get) => ({
@@ -28,25 +33,26 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   orders: [],
   users: [],
   coupons: [],
+  categories: [],
   stats: null,
   isLoading: false,
 
   loadAllData: async () => {
     set({ isLoading: true });
     try {
-      const [products, orders, users, coupons, stats] = await Promise.all([
+      const [products, users, coupons, categories, stats] = await Promise.all([
         db.getProducts(),
-        db.getOrders(),
         db.getUsers(),
         db.getCoupons(),
+        db.getCategories(),
         db.getDashboardStats()
       ]);
 
       set({
         products,
-        orders,
         users,
         coupons,
+        categories,
         stats,
         isLoading: false
       });
@@ -56,40 +62,67 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     }
   },
 
+  initializeRealtimeOrders: () => {
+    const unsubscribe = subscribeToOrders((orders) => {
+      set({ orders });
+    });
+    return unsubscribe;
+  },
+
   updateOrderStatus: async (orderId, status) => {
-    const success = await db.updateOrderStatus(orderId, status);
-    if (success) {
-      await get().loadAllData();
+    // Optimistic UI update
+    set((state) => ({
+      orders: state.orders.map(o => 
+        o.id === orderId ? { ...o, status, ...(status === 'delivered' ? { paymentStatus: 'paid' } : {}) } : o
+      )
+    }));
+    
+    const success = await firebaseUpdateOrderStatus(orderId, status);
+    
+    if (!success) {
+      // Revert on failure (will be handled by next realtime snapshot anyway)
+      get().loadAllData();
     }
     return success;
   },
 
   updateOrder: async (orderId, orderData) => {
-    const success = await db.updateOrder(orderId, orderData);
-    if (success) {
-      await get().loadAllData();
-    }
+    const success = await firebaseUpdateOrder(orderId, orderData);
     return success;
   },
 
   deleteOrder: async (orderId) => {
-    const success = await db.deleteOrder(orderId);
-    if (success) {
-      await get().loadAllData();
-    }
+    const success = await firebaseDeleteOrder(orderId);
     return success;
   },
 
   createOrder: async (orderData) => {
     try {
       const newOrder = await db.createOrder(orderData);
-      if (newOrder) {
-        await get().loadAllData();
-      }
       return newOrder;
     } catch (e) {
       return null;
     }
+  },
+
+  saveCategory: async (category) => {
+    await db.saveCategory(category);
+    await get().loadAllData();
+  },
+
+  deleteCategory: async (categoryId) => {
+    // Validate that no products are using this category
+    const productsUsingCategory = get().products.filter(p => p.categoryId === categoryId || p.category === categoryId);
+    if (productsUsingCategory.length > 0) {
+      alert(`Cannot delete category! ${productsUsingCategory.length} product(s) are currently assigned to it.`);
+      return false;
+    }
+
+    const success = await db.deleteCategory(categoryId);
+    if (success) {
+      await get().loadAllData();
+    }
+    return success;
   },
 
   saveProduct: async (product) => {
@@ -132,5 +165,13 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       await get().loadAllData();
     }
     return review;
+  },
+
+  deleteReview: async (productId, reviewId, userId) => {
+    const success = await db.deleteProductReview(productId, reviewId, userId);
+    if (success) {
+      await get().loadAllData();
+    }
+    return success;
   }
 }));

@@ -455,22 +455,17 @@ export const getDashboardStats = (): DashboardStats => {
   }));
 
   // Sales by category
-  const catSalesMap: { [cat: string]: number } = {
-    Products: 0,
-    meat: 0,
-    dairy: 0,
-    pantry: 0,
-    bakery: 0
-  };
+  const catSalesMap: { [cat: string]: number } = {};
 
   orders.forEach(o => {
     if (o.status === 'delivered' || o.paymentStatus === 'paid') {
       o.items.forEach(item => {
-        const cat = item.product.category;
+        const cat = item.product.categoryId || item.product.category || 'Uncategorized';
         const itemRevenue = item.product.price * item.quantity;
-        if (catSalesMap[cat] !== undefined) {
-          catSalesMap[cat] += itemRevenue;
+        if (catSalesMap[cat] === undefined) {
+          catSalesMap[cat] = 0;
         }
+        catSalesMap[cat] += itemRevenue;
       });
     }
   });

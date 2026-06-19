@@ -46,6 +46,7 @@ export default function AdminUsersPage() {
       } else {
         alert('All users are already perfectly synced.');
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error(error);
       alert('Failed to sync users: ' + error.message);

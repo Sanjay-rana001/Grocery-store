@@ -9,13 +9,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as zod from 'zod';
 import Image from 'next/image';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import ImageCropperModal from '@/components/ImageCropperModal';
 
 // Validation Schema for Product Editor
 const productSchema = zod.object({
   name: zod.string().min(1, 'Product name is required').min(2, 'Name must be at least 2 characters'),
-  category: zod.enum(['Products', 'meat', 'dairy', 'pantry', 'bakery']),
+  categoryId: zod.string().min(1, 'Category is required'),
   subcategory: zod.string().min(1, 'Subcategory is required'),
   price: zod.coerce.number().min(0.01, 'Price must be greater than $0'),
   originalPrice: zod.coerce.number().min(0.01).optional(),
@@ -36,7 +35,7 @@ const productSchema = zod.object({
 type ProductSchemaType = zod.infer<typeof productSchema>;
 
 export default function AdminProductsPage() {
-  const { products, loadAllData, saveProduct, deleteProduct, isLoading } = useAdminStore();
+  const { products, categories, loadAllData, saveProduct, deleteProduct, isLoading } = useAdminStore();
   
   // States
   const [searchVal, setSearchVal] = useState('');
@@ -45,6 +44,7 @@ export default function AdminProductsPage() {
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
 
   useEffect(() => {
     loadAllData();
@@ -59,6 +59,7 @@ export default function AdminProductsPage() {
     watch,
     formState: { errors },
   } = useForm<ProductSchemaType>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(productSchema) as any,
   });
 
@@ -67,36 +68,55 @@ export default function AdminProductsPage() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
+    
+    // Read the file as a local data URL to pass to the cropper
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+      setImageToCrop(reader.result?.toString() || null);
+    });
+    reader.readAsDataURL(file);
+    // Clear the input value so the same file can be selected again if needed
+    e.target.value = '';
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    setImageToCrop(null); // Close modal
     setIsUploading(true);
-    setUploadProgress(0);
+    setUploadProgress(10);
     
     try {
-      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-      const filename = `products/${uniqueSuffix}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
-      const storageRef = ref(storage, filename);
+      const formData = new FormData();
+      // append the cropped blob as a standard image file
+      formData.append('file', croppedBlob, 'product_image.webp');
+      formData.append('folder', 'products');
+
+      // Simulate some progress for UI
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => (prev < 90 ? prev + 10 : prev));
+      }, 200);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const data = await response.json();
       
-      const uploadTask = uploadBytesResumable(storageRef, file);
+      setUploadProgress(100);
+      setValue('imageUrl', data.url, { shouldValidate: true });
       
-      uploadTask.on('state_changed', 
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(Math.round(progress));
-        }, 
-        (error) => {
-          console.error('Upload failed', error);
-          alert('Failed to upload image. Please ensure your Firebase Storage rules allow uploads.');
-          setIsUploading(false);
-        }, 
-        async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          setUploadProgress(100);
-          setValue('imageUrl', downloadURL, { shouldValidate: true });
-          setIsUploading(false);
-        }
-      );
+      // Short delay so user sees 100%
+      setTimeout(() => setIsUploading(false), 500);
+
     } catch (error) {
       console.error('Upload failed', error);
-      alert('Failed to start image upload.');
+      alert('Failed to upload image. Please try again.');
       setIsUploading(false);
     }
   };
@@ -106,7 +126,7 @@ export default function AdminProductsPage() {
     setEditingProduct(null);
     reset({
       name: '',
-      category: 'Products',
+      categoryId: categories.length > 0 ? categories[0].id : '',
       subcategory: 'Vegetables',
       price: 0,
       originalPrice: undefined,
@@ -131,7 +151,7 @@ export default function AdminProductsPage() {
     setEditingProduct(prod);
     reset({
       name: prod.name,
-      category: prod.category,
+      categoryId: prod.categoryId || prod.category || '',
       subcategory: prod.subcategory,
       price: prod.price,
       originalPrice: prod.originalPrice || undefined,
@@ -169,7 +189,7 @@ export default function AdminProductsPage() {
     const finalProduct: Product = {
       id: editingProduct ? editingProduct.id : '', // DB layer will assign a new ID if blank
       name: data.name,
-      category: data.category,
+      categoryId: data.categoryId,
       subcategory: data.subcategory,
       price: data.price,
       originalPrice: data.originalPrice || undefined, // Map 0 or NaN/undefined to undefined
@@ -195,12 +215,15 @@ export default function AdminProductsPage() {
 
   // Search filter
   const filteredProducts = useMemo(() => {
-    if (!searchVal.trim()) return products;
     const q = searchVal.toLowerCase();
-    return products.filter(
-      p => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)
-    );
-  }, [products, searchVal]);
+    return products.filter(p => {
+      if (!searchVal) return true;
+      const catName = categories.find(c => c.id === p.categoryId)?.name || '';
+      return (
+        p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q) || catName.toLowerCase().includes(q)
+      );
+    });
+  }, [products, searchVal, categories]);
 
   return (
     <div className="space-y-6">
@@ -282,7 +305,7 @@ export default function AdminProductsPage() {
                       {/* Category */}
                       <td className="p-4">
                         <span className="capitalize bg-surface-container-low text-primary px-3 py-1 rounded-full text-[10px] font-bold border border-outline-variant/10">
-                          {p.category}
+                          {categories.find(c => c.id === (p.categoryId || p.category))?.name || p.category || p.categoryId}
                         </span>
                       </td>
 
@@ -302,8 +325,10 @@ export default function AdminProductsPage() {
                       <td className="p-4 font-bold">
                         {p.stock === 0 ? (
                           <span className="text-error bg-error/5 border border-error/15 px-2 py-0.5 rounded-full text-[10px]">Out of Stock</span>
-                        ) : p.stock <= 5 ? (
-                          <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full text-[10px]">Low ({p.stock})</span>
+                        ) : p.stock < 10 ? (
+                          <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1 w-fit">
+                            <span className="material-symbols-outlined text-[12px]">warning</span> Low ({p.stock})
+                          </span>
                         ) : (
                           <span className="text-secondary bg-secondary-container/10 border border-secondary-container/20 px-2 py-0.5 rounded-full text-[10px]">
                             {p.stock} Available
@@ -422,14 +447,15 @@ export default function AdminProductsPage() {
                   <div>
                     <label className="text-[10px] font-bold text-outline block mb-1">Store Category</label>
                     <select
-                      {...register('category')}
+                      {...register('categoryId')}
                       className="w-full text-xs p-3 bg-background rounded-xl border border-outline-variant/30 text-primary font-bold cursor-pointer"
                     >
-                      <option value="Products">Products</option>
-                      <option value="meat">Meat & Poultry</option>
-                      <option value="dairy">Dairy</option>
-                      <option value="pantry">Pantry</option>
-                      <option value="bakery">Bakery</option>
+                      <option value="" disabled>Select Category</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -617,6 +643,17 @@ export default function AdminProductsPage() {
               </form>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Image Cropper Modal */}
+      <AnimatePresence>
+        {imageToCrop && (
+          <ImageCropperModal
+            imageSrc={imageToCrop}
+            onCropComplete={handleCropComplete}
+            onClose={() => setImageToCrop(null)}
+          />
         )}
       </AnimatePresence>
 

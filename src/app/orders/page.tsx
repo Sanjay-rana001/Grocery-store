@@ -6,7 +6,8 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
-import { getOrdersByEmail } from '@/lib/db';
+import { updateOrderStatus } from '@/lib/db';
+import { subscribeToCustomerOrders } from '@/lib/firebaseServices';
 import { Order, OrderStatus } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import Navbar from '@/components/Navbar';
@@ -26,6 +27,7 @@ export default function OrdersPage() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -36,24 +38,16 @@ export default function OrdersPage() {
       return;
     }
 
-    const loadOrders = async () => {
-      if (!user?.email) return;
-      setIsLoading(true);
-      try {
-        const fetchedOrders = await getOrdersByEmail(user.email);
-        // Sort orders by date descending
-        const sortedOrders = fetchedOrders.sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setOrders(sortedOrders);
-      } catch (error) {
-        console.error('Error fetching orders:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    if (!user?.email) return;
 
-    loadOrders();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoading(true);
+    const unsubscribe = subscribeToCustomerOrders(user.email, (fetchedOrders) => {
+      setOrders(fetchedOrders);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [isAuthenticated, user, router]);
 
   // Statistics summaries
@@ -86,17 +80,43 @@ export default function OrdersPage() {
     }
   };
 
+  const handleCancelOrder = async (order: Order, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to cancel this order?')) {
+      try {
+        const success = await updateOrderStatus(order.id, 'cancelled');
+        if (success) {
+          // Update local state
+          setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'cancelled' } : o));
+          alert('Order cancelled successfully.');
+        } else {
+          alert('Failed to cancel order. Please try again or contact support.');
+        }
+      } catch (err) {
+        console.error('Error cancelling order:', err);
+      }
+    }
+  };
+
   const getStatusBadgeStyles = (status: OrderStatus) => {
     switch (status) {
       case 'delivered':
         return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case 'shipping':
+      case 'out_for_delivery':
+        return 'bg-secondary/20 text-secondary-fixed-variant border-secondary/30';
+      case 'shipped':
         return 'bg-sky-100 text-sky-800 border-sky-200';
-      case 'packing':
-        return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'packed':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'processing':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'confirmed':
+        return 'bg-teal-100 text-teal-800 border-teal-200';
+      case 'cancelled':
+        return 'bg-surface-container-high text-outline border-outline-variant/30';
       case 'pending':
       default:
-        return 'bg-purple-100 text-purple-800 border-purple-200';
+        return 'bg-amber-100 text-amber-800 border-amber-200';
     }
   };
 
@@ -104,13 +124,21 @@ export default function OrdersPage() {
     switch (status) {
       case 'delivered':
         return 'Delivered';
-      case 'shipping':
-        return 'In Transit';
-      case 'packing':
-        return 'Packing';
+      case 'out_for_delivery':
+        return 'Out for Delivery';
+      case 'shipped':
+        return 'Shipped';
+      case 'packed':
+        return 'Packed';
+      case 'processing':
+        return 'Processing';
+      case 'confirmed':
+        return 'Confirmed';
+      case 'cancelled':
+        return 'Cancelled';
       case 'pending':
       default:
-        return 'Order Placed';
+        return 'Pending';
     }
   };
 
@@ -259,6 +287,15 @@ export default function OrdersPage() {
                         </span>
 
                         <div className="flex items-center gap-2">
+                          {order.status === 'pending' && (
+                            <button
+                              onClick={(e) => handleCancelOrder(order, e)}
+                              className="flex items-center gap-1 text-xs font-bold py-1.5 px-3 rounded-full transition-all border border-outline-variant/50 text-error hover:bg-error/10 active:scale-95"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">cancel</span>
+                              <span>Cancel</span>
+                            </button>
+                          )}
                           <button
                             onClick={(e) => handleReorder(order, e)}
                             className={`flex items-center gap-1 text-xs font-bold py-1.5 px-3 rounded-full transition-all border ${

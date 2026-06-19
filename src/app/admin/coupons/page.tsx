@@ -33,6 +33,7 @@ export default function AdminCouponsPage() {
     reset,
     formState: { errors },
   } = useForm<CouponSchemaType>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(couponSchema) as any,
     defaultValues: {
       code: '',

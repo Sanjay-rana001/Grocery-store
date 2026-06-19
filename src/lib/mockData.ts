@@ -1,9 +1,11 @@
-import { Product, Coupon } from './types';
+import { Product, Coupon, Category } from './types';
 
 export const mockProducts: Product[] = [
   {
     id: '1',
     name: 'Gala Apples',
+    categoryId: 'Products',
+
     category: 'Products',
     subcategory: 'Fruits',
     price: 5.50,
@@ -32,6 +34,8 @@ export const mockProducts: Product[] = [
   {
     id: '2',
     name: 'Hass Avocado',
+    categoryId: 'Products',
+
     category: 'Products',
     subcategory: 'Fruits',
     price: 2.50,
@@ -58,6 +62,8 @@ export const mockProducts: Product[] = [
   {
     id: '3',
     name: 'Bunch Carrots',
+    categoryId: 'Products',
+
     category: 'Products',
     subcategory: 'Vegetables',
     price: 4.00,
@@ -83,6 +89,8 @@ export const mockProducts: Product[] = [
   {
     id: '4',
     name: 'Head Broccoli',
+    categoryId: 'Products',
+
     category: 'Products',
     subcategory: 'Vegetables',
     price: 3.50,
@@ -109,6 +117,8 @@ export const mockProducts: Product[] = [
   {
     id: '5',
     name: 'Gold Kumara',
+    categoryId: 'Products',
+
     category: 'Products',
     subcategory: 'Vegetables',
     price: 7.99,
@@ -134,6 +144,8 @@ export const mockProducts: Product[] = [
   {
     id: '6',
     name: 'Baby Spinach',
+    categoryId: 'Products',
+
     category: 'Products',
     subcategory: 'Vegetables',
     price: 4.50,
@@ -160,6 +172,8 @@ export const mockProducts: Product[] = [
   {
     id: '7',
     name: 'NZ Grass-Fed Angus Ribeye',
+    categoryId: 'meat',
+
     category: 'meat',
     subcategory: 'Beef',
     price: 18.50,
@@ -187,6 +201,8 @@ export const mockProducts: Product[] = [
   {
     id: '8',
     name: 'Free-Range Chicken Breast',
+    categoryId: 'meat',
+
     category: 'meat',
     subcategory: 'Poultry',
     price: 14.99,
@@ -211,6 +227,8 @@ export const mockProducts: Product[] = [
   {
     id: '9',
     name: 'Premium Lamb Cutlets',
+    categoryId: 'meat',
+
     category: 'meat',
     subcategory: 'Lamb',
     price: 24.90,
@@ -235,6 +253,8 @@ export const mockProducts: Product[] = [
   {
     id: '10',
     name: 'Lewis Road Creamery Butter',
+    categoryId: 'dairy',
+
     category: 'dairy',
     subcategory: 'Butter & Spreads',
     price: 8.50,
@@ -260,6 +280,8 @@ export const mockProducts: Product[] = [
   {
     id: '11',
     name: 'Meadow Fresh Organic Milk',
+    categoryId: 'dairy',
+
     category: 'dairy',
     subcategory: 'Milk & Cream',
     price: 5.20,
@@ -284,6 +306,8 @@ export const mockProducts: Product[] = [
   {
     id: '12',
     name: 'Anchor Tasty Cheese Block',
+    categoryId: 'dairy',
+
     category: 'dairy',
     subcategory: 'Cheese',
     price: 12.00,
@@ -309,6 +333,8 @@ export const mockProducts: Product[] = [
   {
     id: '13',
     name: 'Kapiti Vanilla Bean Ice Cream',
+    categoryId: 'dairy',
+
     category: 'dairy',
     subcategory: 'Desserts',
     price: 9.99,
@@ -333,6 +359,8 @@ export const mockProducts: Product[] = [
   {
     id: '14',
     name: "Pic's Crunchy Peanut Butter",
+    categoryId: 'pantry',
+
     category: 'pantry',
     subcategory: 'Spreads',
     price: 6.80,
@@ -358,6 +386,8 @@ export const mockProducts: Product[] = [
   {
     id: '15',
     name: 'Ceres Organics Quinoa',
+    categoryId: 'pantry',
+
     category: 'pantry',
     subcategory: 'Grains & Pasta',
     price: 7.50,
@@ -382,6 +412,8 @@ export const mockProducts: Product[] = [
   {
     id: '16',
     name: 'NZ Premium Manuka Honey MGO 100+',
+    categoryId: 'pantry',
+
     category: 'pantry',
     subcategory: 'Honey & Sweeteners',
     price: 22.00,
@@ -407,6 +439,8 @@ export const mockProducts: Product[] = [
   {
     id: '17',
     name: 'Daily Bread Organic Sourdough',
+    categoryId: 'bakery',
+
     category: 'bakery',
     subcategory: 'Breads',
     price: 8.50,
@@ -433,6 +467,8 @@ export const mockProducts: Product[] = [
   {
     id: '18',
     name: 'Aroha Sparkling Rhubarb Juice',
+    categoryId: 'bakery',
+
     category: 'bakery',
     subcategory: 'Drinks',
     price: 4.20,
@@ -457,6 +493,8 @@ export const mockProducts: Product[] = [
   {
     id: '19',
     name: 'Phoenix Organic Ginger Beer',
+    categoryId: 'bakery',
+
     category: 'bakery',
     subcategory: 'Drinks',
     price: 4.50,
@@ -481,6 +519,8 @@ export const mockProducts: Product[] = [
   {
     id: '20',
     name: 'Organic Kiwifruit',
+    categoryId: 'Products',
+
     category: 'Products',
     subcategory: 'Fruits',
     price: 6.90,
@@ -509,4 +549,12 @@ export const mockCoupons: Coupon[] = [
   { code: 'KIWI10', type: 'percentage', value: 10, isActive: true },
   { code: 'FRESH5', type: 'fixed', value: 5.00, minAmount: 30.00, isActive: true },
   { code: 'EASTER20', type: 'percentage', value: 20, isActive: true }
+];
+
+export const mockCategories: Category[] = [
+  { id: 'Products', name: 'Products', slug: 'products', description: 'Fresh seasonal fruits and vegetables.', icon: 'nutrition', order: 1, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'meat', name: 'Meat & Poultry', slug: 'meat', description: 'Premium cut meat and poultry.', icon: 'set_meal', order: 2, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'dairy', name: 'Dairy & Eggs', slug: 'dairy', description: 'Milk, cheese, eggs and more.', icon: 'water_drop', order: 3, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'pantry', name: 'Pantry Staples', slug: 'pantry', description: 'Everyday pantry essentials.', icon: 'kitchen', order: 4, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'bakery', name: 'Bakery', slug: 'bakery', description: 'Fresh baked breads and pastries.', icon: 'bakery_dining', order: 5, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
 ];

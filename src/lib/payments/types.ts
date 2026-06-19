@@ -2,6 +2,7 @@ export interface TransactionResult {
   success: boolean;
   transactionId?: string;
   clientSecret?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   providerData?: any; // e.g., redirectUrl for PayPal
   error?: string;
 }

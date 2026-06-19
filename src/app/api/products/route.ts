@@ -10,8 +10,11 @@ export async function GET(request: Request) {
     
     let products = await firebaseServices.getProducts();
 
-    if (category && category.toLowerCase() !== 'all') {
-      products = products.filter(p => p.category.toLowerCase() === category.toLowerCase());
+    if (category && category !== 'all') {
+      products = products.filter(p => 
+        (p.categoryId && p.categoryId.toLowerCase() === category.toLowerCase()) || 
+        (p.category && p.category.toLowerCase() === category.toLowerCase())
+      );
     }
 
     if (search) {
@@ -30,6 +33,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(products);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error("Firebase fetch error:", error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });

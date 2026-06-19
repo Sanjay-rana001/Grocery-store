@@ -1,4 +1,4 @@
-import { Product, User, Order, OrderStatus, Coupon, DashboardStats, Review } from './types';
+import { Product, User, Order, OrderStatus, Coupon, DashboardStats, Review, Category } from './types';
 
 // Client-side helper to make API requests to Next.js route handlers.
 // Since these functions run on the client, they make relative HTTP requests.
@@ -22,6 +22,33 @@ const fetchJson = async <T>(url: string, options?: RequestInit): Promise<T> => {
 
 export const initDatabase = () => {
   // Database initialization is handled automatically on the server side now.
+};
+
+// ==========================================
+// CATEGORIES CRUD OPERATIONS
+// ==========================================
+
+export const getCategories = async (): Promise<Category[]> => {
+  return fetchJson<Category[]>('/api/categories');
+};
+
+export const saveCategory = async (category: Category): Promise<Category> => {
+  return fetchJson<Category>('/api/categories', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(category),
+  });
+};
+
+export const deleteCategory = async (id: string): Promise<boolean> => {
+  try {
+    const result = await fetchJson<{ success: boolean }>(`/api/categories/${id}`, {
+      method: 'DELETE',
+    });
+    return result.success;
+  } catch {
+    return false;
+  }
 };
 
 // ==========================================
@@ -85,6 +112,17 @@ export const editProductReview = async (productId: string, reviewId: string, use
     });
   } catch {
     return null;
+  }
+};
+
+export const deleteProductReview = async (productId: string, reviewId: string, userId: string): Promise<boolean> => {
+  try {
+    const result = await fetchJson<{ success: boolean }>(`/api/products/${productId}/reviews?reviewId=${reviewId}&userId=${userId}`, {
+      method: 'DELETE',
+    });
+    return result.success;
+  } catch {
+    return false;
   }
 };
 

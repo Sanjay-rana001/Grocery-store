@@ -9,6 +9,7 @@ export class StripeProvider implements PaymentProvider {
     // In a real production scenario, it would throw an error if missing.
     const secretKey = process.env.STRIPE_SECRET_KEY || 'sk_test_51MockStripeKeyForDevelopmentPurposesOnlyDoNotUse';
     this.stripe = new Stripe(secretKey, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       apiVersion: '2026-05-27.dahlia' as any, // Cast as any to bypass strict literal type matching
     });
   }
@@ -35,6 +36,7 @@ export class StripeProvider implements PaymentProvider {
         clientSecret: paymentIntent.client_secret || undefined,
         transactionId: paymentIntent.id,
       };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Stripe API Error:', error);
       return {

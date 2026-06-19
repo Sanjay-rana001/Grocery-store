@@ -14,6 +14,7 @@ export async function GET() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       uid = userCredential.user.uid;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (createError: any) {
       // If the user already exists, just sign in to get their UID
       if (createError.code === 'auth/email-already-in-use') {
@@ -33,6 +34,7 @@ export async function GET() {
     });
 
     return NextResponse.json({ success: true, message: `Admin user ${email} configured successfully!` });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

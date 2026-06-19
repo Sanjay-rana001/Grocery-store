@@ -4,7 +4,7 @@ import { Address } from '@/lib/types';
 
 export async function POST(request: Request) {
   try {
-    const { email, name, address, profileImage } = await request.json();
+    const { email, name, address, profileImage, savedAddresses } = await request.json();
 
     if (!email) {
       return NextResponse.json({ error: 'Email is required to identify user' }, { status: 400 });
@@ -17,14 +17,16 @@ export async function POST(request: Request) {
     }
 
     // Update fields
-    if (name) user.name = name;
-    if (address) user.address = address as Address;
+    if (name !== undefined) user.name = name;
+    if (address !== undefined) user.address = address as Address;
     if (profileImage !== undefined) user.profileImage = profileImage;
+    if (savedAddresses !== undefined) user.savedAddresses = savedAddresses;
 
     // Save back to Firestore
     await saveUser(user);
 
     return NextResponse.json(user);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('Profile Update Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as zod from 'zod';
 import { useAuthStore } from '@/store/useAuthStore';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Schema for login validation
 const loginSchema = zod.object({
@@ -21,11 +22,18 @@ export default function LoginPage() {
   const { login, googleLogin, appleLogin, isLoading, error, clearError, isAuthenticated } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get('verified') === 'true') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsVerified(true);
       }
     }
@@ -44,6 +52,7 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<LoginSchemaType>({
     resolver: zodResolver(loginSchema),
@@ -54,10 +63,28 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginSchemaType) => {
-    const success = await login(data.email, data.password);
+    const success = await login(data.email, data.password, rememberMe);
     if (success) {
       router.push('/');
     }
+  };
+
+  const handleOpenForgotPassword = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setForgotPasswordEmail(watch('email') || '');
+    setResetMessage('');
+    setIsForgotPasswordOpen(true);
+  };
+
+  const handleSendResetLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotPasswordEmail) return;
+    setIsResetting(true);
+    setResetMessage('');
+    const { resetPassword } = useAuthStore.getState();
+    const res = await resetPassword(forgotPasswordEmail);
+    setIsResetting(false);
+    setResetMessage(res.message);
   };
 
   return (
@@ -66,18 +93,22 @@ export default function LoginPage() {
       <div className="absolute top-0 left-0 w-72 h-72 bg-secondary/5 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-72 h-72 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* Floating Back to Home button */}
-      <Link
-        href="/"
-        className="absolute top-6 left-6 flex items-center gap-1.5 text-xs font-bold text-outline hover:text-secondary active:scale-95 bg-white py-2.5 px-4 rounded-full shadow-sm border border-outline-variant/10 transition-all"
-      >
-        <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-        <span>Back to Store</span>
-      </Link>
+
 
       {/* Main card */}
-      <div className="w-full max-w-[420px] bg-white rounded-[32px] p-8 shadow-[0px_8px_32px_rgba(0,0,0,0.03)] border border-outline-variant/15 relative z-10">
+      <div className="w-full max-w-[420px] bg-white rounded-[32px] p-8 shadow-[0px_8px_32px_rgba(0,0,0,0.03)] border border-outline-variant/15 relative z-10 flex flex-col">
         
+        {/* Integrated Back to Home button */}
+        <div className="flex justify-start mb-2 -mt-2 -ml-2">
+          <Link
+            href="/"
+            className="group inline-flex items-center gap-1 text-[10px] font-bold text-outline hover:text-secondary active:scale-95 transition-all bg-surface-container-low/50 py-1.5 px-3 rounded-xl border border-outline-variant/20"
+          >
+            <span className="material-symbols-outlined text-[14px] transition-transform group-hover:-translate-x-0.5">arrow_back</span>
+            <span>Back to Store</span>
+          </Link>
+        </div>
+
         {/* Branding header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-1.5 justify-center mb-3">
@@ -124,7 +155,7 @@ export default function LoginPage() {
               </span>
               <input
                 type="email"
-                placeholder="you@email.co.nz"
+                placeholder="you@gmail.co.nz"
                 {...register('email')}
                 className={`w-full text-sm py-3 pl-11 pr-4 bg-background rounded-2xl border ${
                   errors.email ? 'border-error ring-1 ring-error/10' : 'border-outline-variant/40 focus:ring-2 focus:ring-secondary/20 focus:border-secondary'
@@ -171,13 +202,15 @@ export default function LoginPage() {
             <label className="flex items-center gap-2 cursor-pointer text-on-surface-variant font-medium">
               <input
                 type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 rounded border-outline-variant text-secondary accent-secondary focus:ring-secondary/20 cursor-pointer"
               />
               <span>Remember me</span>
             </label>
-            <a href="#" className="font-semibold text-secondary hover:underline">
+            <button type="button" onClick={handleOpenForgotPassword} className="font-semibold text-secondary hover:underline bg-transparent border-none cursor-pointer">
               Forgot password?
-            </a>
+            </button>
           </div>
 
           {/* Submit */}
@@ -233,6 +266,71 @@ export default function LoginPage() {
           </Link>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      <AnimatePresence>
+        {isForgotPasswordOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.4 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsForgotPasswordOpen(false)}
+              className="fixed inset-0 bg-black z-40"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="fixed inset-x-4 top-1/3 max-w-sm mx-auto bg-white rounded-3xl p-6 shadow-2xl z-50 border border-outline-variant/15"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-display font-bold text-lg text-primary">Reset Password</h3>
+                <button
+                  onClick={() => setIsForgotPasswordOpen(false)}
+                  className="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center text-outline cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              </div>
+              <p className="text-xs text-outline font-medium mb-5">
+                Enter your email address and we'll send you a link to reset your password.
+              </p>
+
+              {resetMessage && (
+                <div className="mb-4 p-3 bg-secondary-container/30 text-secondary-fixed-variant rounded-xl text-xs font-bold border border-secondary/20">
+                  {resetMessage}
+                </div>
+              )}
+
+              <form onSubmit={handleSendResetLink}>
+                <input
+                  type="email"
+                  required
+                  placeholder="you@gmail.co.nz"
+                  value={forgotPasswordEmail}
+                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                  className="w-full text-sm py-3 px-4 bg-background rounded-xl border border-outline-variant/40 focus:ring-2 focus:ring-secondary/20 focus:border-secondary text-primary mb-4"
+                />
+                <button
+                  type="submit"
+                  disabled={isResetting || !forgotPasswordEmail}
+                  className="w-full bg-secondary hover:bg-primary text-white font-bold py-3 rounded-xl transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isResetting ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                      Sending...
+                    </>
+                  ) : (
+                    'Send Reset Link'
+                  )}
+                </button>
+              </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

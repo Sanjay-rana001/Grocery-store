@@ -6,7 +6,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import MobileNav from '@/components/MobileNav';
 import ProductCard from '@/components/ProductCard';
-import { getProducts } from '@/lib/db';
+import { getProducts, getCategories } from '@/lib/db';
 import { Product } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,6 +22,9 @@ function ShopContent() {
 
   // Local state for interactive filters
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<{ id: string; label: string; icon: string }[]>([
+    { id: 'all', label: 'All', icon: 'apps' }
+  ]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
@@ -43,7 +46,7 @@ function ShopContent() {
   const [minRating, setMinRating] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState('popularity');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 100; // Increased to show all products on a single page
+  const itemsPerPage = 12; // Reduced for performance (pagination enabled)
 
   // On mount and category/search update
   useEffect(() => {
@@ -51,10 +54,20 @@ function ShopContent() {
     const loadProducts = async () => {
       setIsLoading(true);
       try {
-        const data = await getProducts();
-        setProducts(data);
+        const [productData, categoryData] = await Promise.all([
+          getProducts(),
+          getCategories()
+        ]);
+        setProducts(productData);
+        
+        // Build dynamic category list
+        const activeCategories = categoryData.filter(c => c.isActive).sort((a, b) => a.order - b.order);
+        setCategories([
+          { id: 'all', label: 'All', icon: 'apps' },
+          ...activeCategories.map(c => ({ id: c.id, label: c.name, icon: c.icon }))
+        ]);
       } catch (error) {
-        console.error('Error fetching products:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setIsLoading(false);
       }
@@ -72,6 +85,7 @@ function ShopContent() {
   // Sync organicOnly and deals filters from URL parameter triggers
   useEffect(() => {
     if (filterParam === 'organic') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOrganicOnly(true);
     } else if (filterParam === 'deals') {
       // Keep organicOnly false but we will filter by deals
@@ -80,15 +94,7 @@ function ShopContent() {
     }
   }, [filterParam]);
 
-  // Unique list of categories
-  const categories = [
-    { id: 'all', label: 'All', icon: 'apps' },
-    { id: 'Products', label: 'Products', icon: 'nutrition' },
-    { id: 'meat', label: 'Meat', icon: 'set_meal' },
-    { id: 'dairy', label: 'Dairy', icon: 'water_drop' },
-    { id: 'pantry', label: 'Pantry', icon: 'kitchen' },
-    { id: 'bakery', label: 'Bakery', icon: 'bakery_dining' },
-  ];
+  // Categories are now loaded dynamically via state
 
   // Unique list of brands from current products
   const availableBrands = useMemo(() => {
@@ -103,14 +109,23 @@ function ShopContent() {
     // 1. Search Query Filter
     if (searchParam) {
       const q = searchParam.toLowerCase();
-      result = result.filter(
-        p => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
-      );
+      result = result.filter(p => {
+        const catName = categories.find(c => c.id === p.categoryId)?.label || '';
+        return (
+          (p.name || '').toLowerCase().includes(q) || 
+          (p.description || '').toLowerCase().includes(q) ||
+          (p.categoryId || '').toLowerCase().includes(q) ||
+          (p.category || '').toLowerCase().includes(q) ||
+          (p.subcategory || '').toLowerCase().includes(q) ||
+          (p.brand || '').toLowerCase().includes(q) ||
+          catName.toLowerCase().includes(q)
+        );
+      });
     }
 
     // 2. Category Tab Filter
     if (categoryParam !== 'all') {
-      result = result.filter(p => p.category === categoryParam);
+      result = result.filter(p => p.categoryId === categoryParam || p.category === categoryParam);
     }
 
     // 3. Special URL Filters (filter=organic, filter=deals, filter=seasonal)
@@ -134,6 +149,7 @@ function ShopContent() {
     const activeDietary = Object.keys(dietary).filter(k => dietary[k]);
     if (activeDietary.length > 0) {
       result = result.filter(p => 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         activeDietary.every(d => p.dietary?.includes(d as any))
       );
     }
@@ -462,9 +478,9 @@ function ShopContent() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-2 lg:gap-6">
-                {paginatedProducts.map(product => (
-                  <ProductCard key={product.id} product={product} />
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-2 lg:gap-6">
+                {paginatedProducts.map((product, idx) => (
+                  <ProductCard key={product.id} product={product} priority={idx < 4} />
                 ))}
               </div>
             )}

@@ -16,6 +16,7 @@ export default function WishlistDrawer({ isOpen, onClose }: WishlistDrawerProps)
   const { items, removeItem } = useWishlistStore();
   const { addItem } = useCartStore();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleAddToCart = (product: any) => {
     addItem(product, 1);
     removeItem(product.id);

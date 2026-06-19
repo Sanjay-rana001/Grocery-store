@@ -34,12 +34,18 @@ export default function CheckoutPage() {
   const { items, getTotals, coupon, couponError, applyCouponCode, removeCouponCode, clearCart } = useCartStore();
   const { user, isAuthenticated, updateAddress } = useAuthStore();
 
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsClient(true);
+  }, []);
+
   // Redirect if not authenticated
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (isClient && !isAuthenticated) {
       router.push('/auth/login');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, isClient]);
 
   // Steps: 1 = Delivery, 2 = Payment, 3 = Confirmation
   const [step, setStep] = useState(1);
@@ -54,6 +60,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (availableDates.length > 0 && !deliverySlot.date) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDeliverySlot({
         date: availableDates[0],
         time: 'Morning (8AM - 12PM)'
@@ -89,7 +96,7 @@ export default function CheckoutPage() {
     }
   }, [user, setValue]);
 
-  if (!isAuthenticated) {
+  if (!isClient || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-primary">
         <span className="material-symbols-outlined text-[48px] animate-bounce text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -141,6 +148,7 @@ export default function CheckoutPage() {
   // Submit Step 1
   const proceedToPayment = async (data: AddressSchemaType) => {
     setStep1Address(data);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     updateAddress(data as any);
     setStep(2);
   };
@@ -172,6 +180,7 @@ export default function CheckoutPage() {
         time: deliverySlot.time
       },
       paymentMethod: selectedMethod === 'cod' ? 'cod' : 'mock_online'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any; // Cast as any temporarily to allow adding optional couponCode later
 
     if (coupon?.code) {
@@ -191,6 +200,7 @@ export default function CheckoutPage() {
       clearCart();
       router.push('/orders');
       setIsProcessing(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('Failed to place order:', error);
       alert(`There was an error placing your order: ${error.message || 'Unknown error'}. Please try again.`);
@@ -292,6 +302,37 @@ export default function CheckoutPage() {
                   Delivery Information
                 </h2>
 
+                {user?.savedAddresses && user.savedAddresses.length > 0 && (
+                  <div className="mb-6 pb-6 border-b border-outline-variant/10">
+                    <h3 className="text-sm font-bold text-primary mb-3">Quick Select Saved Address</h3>
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x">
+                      {user.savedAddresses.map((addr, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setValue('fullName', addr.fullName);
+                            setValue('street', addr.street);
+                            setValue('city', addr.city);
+                            setValue('postalCode', addr.postalCode);
+                            setValue('phone', addr.phone);
+                          }}
+                          className="flex-shrink-0 snap-start w-64 bg-surface-container-low p-4 rounded-2xl border border-outline-variant/20 text-left hover:border-secondary hover:bg-secondary/5 hover:shadow-md transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="font-bold text-sm text-primary group-hover:text-secondary">{addr.fullName}</p>
+                            {(user.address?.street === addr.street && user.address?.postalCode === addr.postalCode) && (
+                              <span className="bg-secondary/10 text-secondary text-[10px] font-black uppercase px-2 py-0.5 rounded-full">Default</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-outline font-semibold truncate">{addr.street}</p>
+                          <p className="text-xs text-outline truncate">{addr.city}, {addr.postalCode}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <form onSubmit={handleSubmit(proceedToPayment)} className="space-y-5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Full Name */}
@@ -303,7 +344,7 @@ export default function CheckoutPage() {
                         className={`w-full text-sm p-3.5 bg-background rounded-2xl border ${
                           errors.fullName ? 'border-error ring-1 ring-error/10' : 'border-outline-variant/40 focus:ring-2 focus:ring-secondary/20'
                         } text-primary font-medium`}
-                        placeholder="e.g. John Carter"
+                        placeholder="e.g. Sanjay Rana"
                       />
                       {errors.fullName && <p className="text-xs text-error font-semibold mt-1">{errors.fullName.message}</p>}
                     </div>

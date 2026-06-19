@@ -23,6 +23,11 @@ const nextConfig: NextConfig = {
         hostname: 'storage.googleapis.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'www.ianchatfield.co.uk',
+        pathname: '/**',
+      },
     ],
   },
   serverExternalPackages: ['firebase-admin'],

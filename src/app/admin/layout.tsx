@@ -14,6 +14,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -44,6 +45,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const menuItems = [
     { name: 'Dashboard', path: '/admin', icon: 'dashboard' },
     { name: 'Products', path: '/admin/products', icon: 'inventory' },
+    { name: 'Categories', path: '/admin/categories', icon: 'category' },
     { name: 'Orders', path: '/admin/orders', icon: 'shopping_cart' },
     { name: 'Coupons', path: '/admin/coupons', icon: 'percent' },
     { name: 'Users', path: '/admin/users', icon: 'group' },

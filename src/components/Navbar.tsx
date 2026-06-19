@@ -8,6 +8,7 @@ import { useCartStore } from '../store/useCartStore';
 import { useWishlistStore } from '../store/useWishlistStore';
 import dynamic from 'next/dynamic';
 import { useUiStore } from '../store/useUiStore';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const CartDrawer = dynamic(() => import('./CartDrawer'), { ssr: false });
 const WishlistDrawer = dynamic(() => import('./WishlistDrawer'), { ssr: false });
@@ -18,13 +19,14 @@ export default function Navbar() {
   const { user, logout, isAuthenticated } = useAuthStore();
   const { getTotals } = useCartStore();
   const wishlistItems = useWishlistStore(state => state.items);
-  const { isCartOpen, isWishlistOpen, setCartOpen, setWishlistOpen } = useUiStore();
+  const { isCartOpen, isWishlistOpen, isMobileSearchOpen, setCartOpen, setWishlistOpen, setMobileSearchOpen } = useUiStore();
   
   const [searchVal, setSearchVal] = useState(searchParams.get('search') || '');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
   }, []);
 
@@ -42,6 +44,25 @@ export default function Navbar() {
   const handleLinkFilter = (filterKey: string) => {
     router.push(`/?filter=${filterKey}`);
   };
+
+  React.useEffect(() => {
+    if (!isMounted) return;
+
+    // Debounce the live search by 300ms so it doesn't stutter on fast typing
+    const timeout = setTimeout(() => {
+      const currentSearch = searchParams.get('search') || '';
+      const trimmedVal = searchVal.trim();
+      
+      // Only push if the value actually changed to prevent unnecessary re-renders
+      if (trimmedVal && trimmedVal !== currentSearch) {
+        router.push(`/?search=${encodeURIComponent(trimmedVal)}`);
+      } else if (!trimmedVal && currentSearch) {
+        router.push('/');
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [searchVal, isMounted, router, searchParams]);
 
   return (
     <>
@@ -114,6 +135,7 @@ export default function Navbar() {
 
             {/* Cart Button */}
             <button 
+              id="navbar-cart-button"
               onClick={() => setCartOpen(true)}
               className="relative text-on-surface-variant hover:text-primary transition-all active:scale-90"
             >
@@ -237,6 +259,37 @@ export default function Navbar() {
 
       {/* Wishlist Drawer */}
       <WishlistDrawer isOpen={isWishlistOpen} onClose={() => setWishlistOpen(false)} />
+
+      {/* Mobile Search Modal */}
+      <AnimatePresence>
+        {isMobileSearchOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed inset-0 z-50 bg-white px-4 pt-4 flex flex-col lg:hidden"
+          >
+            <div className="flex items-center gap-3 w-full">
+              <button 
+                onClick={() => setMobileSearchOpen(false)}
+                className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-outline cursor-pointer active:scale-95 transition-all"
+              >
+                <span className="material-symbols-outlined">arrow_back</span>
+              </button>
+              <form onSubmit={(e) => { handleSearchSubmit(e); setMobileSearchOpen(false); }} className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Search fresh Products..."
+                  value={searchVal}
+                  onChange={(e) => setSearchVal(e.target.value)}
+                  autoFocus
+                  className="w-full bg-surface-container-low px-4 py-3 rounded-2xl border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-secondary/20 text-label-md font-bold text-primary"
+                />
+              </form>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

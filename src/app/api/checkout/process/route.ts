@@ -26,6 +26,7 @@ export async function POST(request: Request) {
       transactionId: result.transactionId,
       providerData: result.providerData,
     });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('Checkout Processing Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

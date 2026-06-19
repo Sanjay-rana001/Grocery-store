@@ -85,18 +85,22 @@ export default function SignupPage() {
       <div className="absolute top-0 left-0 w-72 h-72 bg-secondary/5 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-72 h-72 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* Floating Back to Home button */}
-      <Link
-        href="/"
-        className="absolute top-6 left-6 flex items-center gap-1.5 text-xs font-bold text-outline hover:text-secondary active:scale-95 bg-white py-2.5 px-4 rounded-full shadow-sm border border-outline-variant/10 transition-all"
-      >
-        <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-        <span>Back to Store</span>
-      </Link>
+
 
       {/* Main card */}
-      <div className="w-full max-w-[420px] bg-white rounded-[32px] p-8 shadow-[0px_8px_32px_rgba(0,0,0,0.03)] border border-outline-variant/15 relative z-10">
+      <div className="w-full max-w-[420px] bg-white rounded-[32px] p-8 shadow-[0px_8px_32px_rgba(0,0,0,0.03)] border border-outline-variant/15 relative z-10 flex flex-col">
         
+        {/* Integrated Back to Home button */}
+        <div className="flex justify-start mb-2 -mt-2 -ml-2">
+          <Link
+            href="/"
+            className="group inline-flex items-center gap-1 text-[10px] font-bold text-outline hover:text-secondary active:scale-95 transition-all bg-surface-container-low/50 py-1.5 px-3 rounded-xl border border-outline-variant/20"
+          >
+            <span className="material-symbols-outlined text-[14px] transition-transform group-hover:-translate-x-0.5">arrow_back</span>
+            <span>Back to Store</span>
+          </Link>
+        </div>
+
         {/* Branding header */}
         <div className="text-center mb-6">
           <Link href="/" className="inline-flex items-center gap-1.5 justify-center mb-3">
@@ -133,7 +137,7 @@ export default function SignupPage() {
               </span>
               <input
                 type="text"
-                placeholder="John Doe"
+                placeholder="Sanjay Rana"
                 {...register('name')}
                 className={`w-full text-sm py-3 pl-11 pr-4 bg-background rounded-2xl border ${
                   errors.name ? 'border-error ring-1 ring-error/10' : 'border-outline-variant/40 focus:ring-2 focus:ring-secondary/20 focus:border-secondary'
@@ -154,7 +158,7 @@ export default function SignupPage() {
               </span>
               <input
                 type="email"
-                placeholder="johndoe@email.co.nz"
+                placeholder="you@gmail.co.nz"
                 {...register('email')}
                 className={`w-full text-sm py-3 pl-11 pr-4 bg-background rounded-2xl border ${
                   errors.email ? 'border-error ring-1 ring-error/10' : 'border-outline-variant/40 focus:ring-2 focus:ring-secondary/20 focus:border-secondary'

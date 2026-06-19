@@ -1,139 +1,77 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAdminStore } from '@/store/useAdminStore';
 import { OrderStatus, Product, Order } from '@/lib/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 
 export default function AdminOrdersPage() {
-  const { orders, products, loadAllData, updateOrderStatus, deleteOrder, createOrder, updateOrder, isLoading } = useAdminStore();
-  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
-
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
-
-  // Form State
-  const [fName, setFName] = useState('');
-  const [fEmail, setFEmail] = useState('');
-  const [fStreet, setFStreet] = useState('');
-  const [fCity, setFCity] = useState('Auckland');
-  const [fPostal, setFPostal] = useState('');
-  const [fPhone, setFPhone] = useState('');
-  const [fStatus, setFStatus] = useState<OrderStatus>('pending');
-  const [fPayment, setFPayment] = useState<'pending' | 'paid'>('pending');
+  const { orders, loadAllData, initializeRealtimeOrders, updateOrderStatus, deleteOrder, isLoading } = useAdminStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<string>('all');
   
-  const [fItems, setFItems] = useState<{product: Product, quantity: number}[]>([]);
-  const [selectedProductId, setSelectedProductId] = useState('');
+  const [viewOrder, setViewOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     loadAllData();
-  }, [loadAllData]);
+    const unsubscribe = initializeRealtimeOrders();
+    return () => unsubscribe();
+  }, [loadAllData, initializeRealtimeOrders]);
 
   const handleStatusChange = (orderId: string, status: OrderStatus) => {
     updateOrderStatus(orderId, status);
-  };
-
-  const toggleExpand = (orderId: string) => {
-    setExpandedOrderId(expandedOrderId === orderId ? null : orderId);
-  };
-
-  const openCreateModal = () => {
-    setEditingOrder(null);
-    setFName(''); setFEmail(''); setFStreet(''); setFCity('Auckland'); setFPostal(''); setFPhone('');
-    setFStatus('pending'); setFPayment('pending');
-    setFItems([]);
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = (order: Order) => {
-    setEditingOrder(order);
-    setFName(order.address.fullName || order.userName);
-    setFEmail(order.userEmail);
-    setFStreet(order.address.street);
-    setFCity(order.address.city);
-    setFPostal(order.address.postalCode);
-    setFPhone(order.address.phone);
-    setFStatus(order.status);
-    setFPayment(order.paymentStatus === 'paid' ? 'paid' : 'pending');
-    setFItems(order.items);
-    setIsModalOpen(true);
-  };
-
-  const addItem = () => {
-    if (!selectedProductId) return;
-    const prod = products.find(p => p.id === selectedProductId);
-    if (!prod) return;
-    
-    setFItems(prev => {
-      const exists = prev.find(i => i.product.id === prod.id);
-      if (exists) {
-        return prev.map(i => i.product.id === prod.id ? { ...i, quantity: i.quantity + 1 } : i);
-      }
-      return [...prev, { product: prod, quantity: 1 }];
-    });
-  };
-
-  const removeItem = (pid: string) => {
-    setFItems(prev => prev.filter(i => i.product.id !== pid));
-  };
-
-  const updateQuantity = (pid: string, qty: number) => {
-    if (qty <= 0) return removeItem(pid);
-    setFItems(prev => prev.map(i => i.product.id === pid ? { ...i, quantity: qty } : i));
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (fItems.length === 0) return alert('Please add at least one item.');
-
-    const subtotal = fItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-
-    const address = {
-      fullName: fName,
-      street: fStreet,
-      city: fCity,
-      postalCode: fPostal,
-      phone: fPhone,
-      country: 'New Zealand',
-    };
-
-    if (editingOrder) {
-      await updateOrder(editingOrder.id, {
-        userName: fName,
-        userEmail: fEmail,
-        address,
-        status: fStatus,
-        paymentStatus: fPayment,
-        items: fItems,
-        subtotal,
-        total: subtotal,
-      });
-    } else {
-      await createOrder({
-        userName: fName,
-        userEmail: fEmail,
-        items: fItems,
-        subtotal,
-        tax: subtotal * 0.15,
-        shippingFee: 0,
-        discount: 0,
-        total: subtotal + (subtotal * 0.15),
-        address,
-        deliverySlot: { date: new Date().toISOString().split('T')[0], time: 'As soon as possible' },
-        paymentMethod: 'cod',
-      });
+    if (viewOrder && viewOrder.id === orderId) {
+      setViewOrder({ ...viewOrder, status });
     }
-
-    setIsModalOpen(false);
   };
 
   const executeDelete = async (id: string) => {
-    await deleteOrder(id);
-    setOrderToDelete(null);
+    if (confirm('Are you sure you want to delete this order?')) {
+      await deleteOrder(id);
+      setViewOrder(null);
+    }
   };
+
+  const filteredOrders = useMemo(() => {
+    let result = [...orders];
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(o => 
+        o.id.toLowerCase().includes(q) || 
+        o.userName.toLowerCase().includes(q) ||
+        o.userEmail.toLowerCase().includes(q)
+      );
+    }
+
+    if (statusFilter !== 'all') {
+      result = result.filter(o => o.status === statusFilter);
+    }
+
+    if (paymentFilter !== 'all') {
+      result = result.filter(o => o.paymentStatus === paymentFilter);
+    }
+
+    if (dateRange !== 'all') {
+      const now = new Date();
+      result = result.filter(o => {
+        const d = new Date(o.createdAt);
+        const diffTime = Math.abs(now.getTime() - d.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (dateRange === '7') return diffDays <= 7;
+        if (dateRange === '30') return diffDays <= 30;
+        return true;
+      });
+    }
+
+    return result;
+  }, [orders, searchQuery, statusFilter, paymentFilter, dateRange]);
+
+  const pendingCount = orders.filter(o => o.status === 'pending').length;
 
   if (isLoading && orders.length === 0) {
     return (
@@ -149,289 +87,348 @@ export default function AdminOrdersPage() {
   return (
     <div className="space-y-6">
       
-      {/* Top Bar */}
-      <div className="bg-white rounded-[24px] p-5 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] border border-outline-variant/10 flex justify-between items-center">
+      {/* Dashboard Top Area */}
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
         <div>
-          <h3 className="font-display font-bold text-base sm:text-lg text-primary">Store Orders Tracker</h3>
-          <p className="text-xs text-outline font-medium">Manage and fulfill customer orders</p>
+          <h3 className="font-display font-bold text-2xl text-primary flex items-center gap-2">
+            Orders
+            {pendingCount > 0 && (
+              <span className="bg-error text-white text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">
+                {pendingCount} Pending
+              </span>
+            )}
+          </h3>
+          <p className="text-sm text-outline font-medium">Manage and fulfill customer orders in real-time</p>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="bg-secondary text-white font-extrabold text-xs py-3 px-6 rounded-2xl active:scale-95 shadow flex items-center gap-2"
-        >
-          <span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
-          <span>New Manual Order</span>
-        </button>
       </div>
 
-      {orders.length === 0 ? (
-        <div className="bg-white rounded-[32px] text-center py-16 text-outline text-xs border border-outline-variant/10 shadow-[0px_4px_24px_rgba(0,0,0,0.02)]">
-          No customer orders placed yet.
+      {/* Filters Bar */}
+      <div className="bg-white rounded-3xl p-4 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] border border-outline-variant/10 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="relative">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+          <input 
+            type="text" 
+            placeholder="Search by ID, Name or Email"
+            className="w-full pl-9 pr-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-secondary/20 outline-none"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
-      ) : (
-        <div className="bg-white rounded-[32px] p-6 shadow-[0px_4px_24px_rgba(0,0,0,0.02)] border border-outline-variant/10 overflow-x-auto">
-          <table className="w-full text-left text-xs font-semibold text-primary border-collapse min-w-[850px]">
-            <thead>
-              <tr className="bg-surface-container-low/60 text-outline border-b border-outline-variant/10">
-                <th className="p-4 w-10"></th>
-                <th className="p-4 font-bold">Order ID</th>
-                <th className="p-4 font-bold">Customer</th>
-                <th className="p-4 font-bold">Placed Date</th>
-                <th className="p-4 font-bold">Revenue</th>
-                <th className="p-4 font-bold">Status</th>
-                <th className="p-4 font-bold">Payment</th>
-                <th className="p-4 font-bold text-center">Actions</th>
+        
+        <select 
+          className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-secondary/20"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="processing">Processing</option>
+          <option value="packed">Packed</option>
+          <option value="shipped">Shipped</option>
+          <option value="out_for_delivery">Out for Delivery</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+
+        <select 
+          className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-secondary/20"
+          value={paymentFilter}
+          onChange={(e) => setPaymentFilter(e.target.value)}
+        >
+          <option value="all">All Payments</option>
+          <option value="paid">Paid</option>
+          <option value="pending">Unpaid</option>
+        </select>
+
+        <select 
+          className="w-full px-4 py-2.5 bg-surface-container-low border border-outline-variant/30 rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-secondary/20"
+          value={dateRange}
+          onChange={(e) => setDateRange(e.target.value)}
+        >
+          <option value="all">All Time</option>
+          <option value="7">Last 7 Days</option>
+          <option value="30">Last 30 Days</option>
+        </select>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-[32px] p-6 shadow-[0px_4px_24px_rgba(0,0,0,0.02)] border border-outline-variant/10 overflow-x-auto">
+        <table className="w-full text-left text-xs font-semibold text-primary border-collapse min-w-[900px]">
+          <thead>
+            <tr className="bg-surface-container-low/60 text-outline border-b border-outline-variant/10">
+              <th className="p-4 font-bold">Order ID</th>
+              <th className="p-4 font-bold">Customer</th>
+              <th className="p-4 font-bold">Date & Delivery Slot</th>
+              <th className="p-4 font-bold">Items</th>
+              <th className="p-4 font-bold">Total</th>
+              <th className="p-4 font-bold">Payment</th>
+              <th className="p-4 font-bold">Status</th>
+              <th className="p-4 font-bold text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-outline-variant/10">
+            {filteredOrders.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="text-center py-12 text-outline">No orders match your criteria.</td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant/10">
-              {orders.map((o) => {
-                const isExpanded = expandedOrderId === o.id;
+            ) : (
+              filteredOrders.map((o) => (
+                <tr key={o.id} className="hover:bg-surface-container-low/10 transition-all">
+                  <td className="p-4 font-bold font-mono text-secondary text-[11px]">{o.id}</td>
+                  <td className="p-4">
+                    <div>
+                      <p className="font-extrabold">{o.userName}</p>
+                      <p className="text-[10px] text-outline">{o.userEmail}</p>
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <p className="text-[10px] text-outline mb-0.5">Placed: {formatDate(o.createdAt)}</p>
+                    <div className="flex items-center gap-1 mt-1 text-secondary">
+                      <span className="material-symbols-outlined text-[14px]">local_shipping</span>
+                      <span className="text-[11px] font-bold">{o.deliverySlot?.date} • {o.deliverySlot?.time?.split(' ')[0]}</span>
+                    </div>
+                  </td>
+                  <td className="p-4 text-outline">{o.items.length} items</td>
+                  <td className="p-4 font-bold text-secondary-fixed-variant">{formatCurrency(o.total)}</td>
+                  <td className="p-4">
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      o.paymentStatus === 'paid' ? 'bg-secondary/10 text-secondary' : 'bg-error/10 text-error'
+                    }`}>
+                      {o.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <select
+                      value={o.status}
+                      onChange={(e) => handleStatusChange(o.id, e.target.value as OrderStatus)}
+                      className={`text-[10px] font-black rounded-full px-3 py-1 cursor-pointer border outline-none capitalize ${
+                        o.status === 'delivered' ? 'bg-secondary-container/10 border-secondary-container/30 text-secondary'
+                        : o.status === 'out_for_delivery' ? 'bg-secondary/20 border-secondary/30 text-secondary-fixed-variant'
+                        : o.status === 'shipped' ? 'bg-primary-fixed/20 border-primary-fixed/30 text-primary'
+                        : o.status === 'packed' ? 'bg-blue-100 border-blue-200 text-blue-800'
+                        : o.status === 'processing' ? 'bg-blue-50 border-blue-100 text-blue-600'
+                        : o.status === 'confirmed' ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                        : o.status === 'cancelled' ? 'bg-surface-container-high border-outline-variant/30 text-outline'
+                        : 'bg-amber-50 border-amber-200 text-amber-800'
+                      }`}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="processing">Processing</option>
+                      <option value="packed">Packed</option>
+                      <option value="shipped">Shipped</option>
+                      <option value="out_for_delivery">Out for Delivery</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </td>
+                  <td className="p-4 text-right">
+                    <button
+                      onClick={() => setViewOrder(o)}
+                      className="bg-primary text-white px-4 py-1.5 rounded-lg text-[11px] font-bold hover:bg-secondary transition-all"
+                    >
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-                return (
-                  <React.Fragment key={o.id}>
-                    <tr className="hover:bg-surface-container-low/10 transition-all">
-                      <td className="p-4">
-                        <button
-                          onClick={() => toggleExpand(o.id)}
-                          className="w-7 h-7 rounded-lg hover:bg-surface-container flex items-center justify-center text-outline hover:text-primary transition-all active:scale-90"
-                        >
-                          <span className="material-symbols-outlined text-[20px] transition-transform duration-200" style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-                            chevron_right
-                          </span>
-                        </button>
-                      </td>
-                      <td className="p-4 font-bold font-mono text-secondary text-[10px]">{o.id}</td>
-                      <td className="p-4">
-                        <div>
-                          <p className="font-extrabold">{o.userName}</p>
-                          <p className="text-[10px] text-outline font-semibold">{o.userEmail}</p>
-                        </div>
-                      </td>
-                      <td className="p-4 text-outline font-semibold">{formatDate(o.createdAt)}</td>
-                      <td className="p-4 font-bold text-secondary-fixed-variant">{formatCurrency(o.total)}</td>
-                      <td className="p-4">
-                        <select
-                          value={o.status}
-                          onChange={(e) => handleStatusChange(o.id, e.target.value as OrderStatus)}
-                          className={`text-[10px] font-black rounded-full px-3 py-1 cursor-pointer border focus:ring-2 focus:ring-secondary/20 capitalize font-sans ${
-                            o.status === 'delivered' ? 'bg-secondary-container/10 border-secondary-container/30 text-secondary'
-                            : o.status === 'shipping' ? 'bg-primary-fixed/20 border-primary-fixed/30 text-primary'
-                            : o.status === 'packing' ? 'bg-blue-50 border-blue-200 text-blue-800'
-                            : 'bg-amber-50 border-amber-200 text-amber-800'
-                          }`}
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="packing">Packing</option>
-                          <option value="shipping">Shipping</option>
-                          <option value="delivered">Delivered</option>
-                        </select>
-                      </td>
-                      <td className="p-4">
-                        <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold ${
-                          o.paymentStatus === 'paid' ? 'text-secondary' : 'text-error'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${o.paymentStatus === 'paid' ? 'bg-secondary' : 'bg-error animate-pulse'}`} />
-                          {o.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
-                        </span>
-                      </td>
-                      <td className="p-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            onClick={() => openEditModal(o)}
-                            className="w-8 h-8 rounded-xl hover:bg-surface-container flex items-center justify-center text-secondary active:scale-90 border border-outline-variant/10"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">edit</span>
-                          </button>
-                          
-                          {orderToDelete === o.id ? (
-                            <div className="flex items-center gap-1 bg-error/10 p-1 rounded-xl border border-error/20">
-                              <button onClick={() => executeDelete(o.id)} className="text-[9px] font-black text-error hover:underline px-1">Confirm</button>
-                              <button onClick={() => setOrderToDelete(null)} className="text-[9px] font-bold text-outline hover:underline px-1">X</button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setOrderToDelete(o.id)}
-                              className="w-8 h-8 rounded-xl hover:bg-error/5 flex items-center justify-center text-error active:scale-90 border border-outline-variant/10"
-                            >
-                              <span className="material-symbols-outlined text-[16px]">delete</span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-
-                    {/* Expandable item details */}
-                    {isExpanded && (
-                      <tr>
-                        <td colSpan={8} className="bg-surface-container-low/30 px-6 py-5 border-t border-b border-outline-variant/10">
-                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-xs">
-                            <div className="bg-white p-4 rounded-2xl border border-outline-variant/10 shadow-sm">
-                              <h4 className="font-bold text-primary flex items-center gap-1.5 mb-2.5">
-                                <span className="material-symbols-outlined text-secondary text-[16px]">location_on</span> Shipment Information
-                              </h4>
-                              <p className="font-bold text-primary">{o.address.fullName}</p>
-                              <p className="text-on-surface-variant font-medium">{o.address.street}</p>
-                              <p className="text-on-surface-variant font-medium">{o.address.city}, NZ {o.address.postalCode}</p>
-                              <p className="text-on-surface-variant font-bold pt-1.5">Phone: {o.address.phone}</p>
-                            </div>
-                            <div className="bg-white p-4 rounded-2xl border border-outline-variant/10 shadow-sm">
-                              <h4 className="font-bold text-primary flex items-center gap-1.5 mb-1">
-                                <span className="material-symbols-outlined text-secondary text-[16px]">shopping_basket</span> Ordered Goods
-                              </h4>
-                              <div className="space-y-2 mt-2">
-                                {o.items.map((item) => (
-                                  <div key={item.product.id} className="flex justify-between items-center text-[11px] font-semibold text-primary">
-                                    <span className="truncate">{item.product.name} ({item.quantity}x)</span>
-                                    <span className="text-outline">{formatCurrency(item.product.price * item.quantity)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </motion.div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Editor Modal Overlay */}
+      {/* Order Details Modal/Slide-over */}
       <AnimatePresence>
-        {isModalOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }}
-              onClick={() => setIsModalOpen(false)}
-              className="fixed inset-0 bg-black z-45"
+        {viewOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setViewOrder(null)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
             />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 15 }}
-              className="fixed inset-x-4 top-10 max-h-[85vh] max-w-4xl bg-white rounded-[32px] p-6 sm:p-8 shadow-2xl z-50 flex flex-col mx-auto overflow-hidden border border-outline-variant/15"
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="absolute right-0 top-0 bottom-0 w-full max-w-2xl bg-white shadow-2xl flex flex-col h-full border-l border-outline-variant/20 overflow-hidden"
             >
-              <div className="flex justify-between items-center mb-5 pb-3 border-b border-outline-variant/10">
-                <h3 className="font-display font-bold text-headline-sm text-primary">
-                  {editingOrder ? `Edit Order: ${editingOrder.id}` : 'Create Manual Order'}
-                </h3>
-                <button onClick={() => setIsModalOpen(false)} className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-outline hover:text-primary">
-                  <span className="material-symbols-outlined text-[18px]">close</span>
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-outline-variant/10 bg-surface-container-low">
+                <div>
+                  <h2 className="text-xl font-display font-bold text-primary">Order Details</h2>
+                  <p className="text-xs font-mono font-bold text-secondary">{viewOrder.id}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <select
+                    value={viewOrder.status}
+                    onChange={(e) => handleStatusChange(viewOrder.id, e.target.value as OrderStatus)}
+                    className={`text-xs font-black rounded-lg px-4 py-2 cursor-pointer border outline-none capitalize ${
+                      viewOrder.status === 'delivered' ? 'bg-secondary-container/10 border-secondary-container/30 text-secondary'
+                      : viewOrder.status === 'cancelled' ? 'bg-surface-container-high border-outline-variant/30 text-outline'
+                      : 'bg-amber-50 border-amber-200 text-amber-800'
+                    }`}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="processing">Processing</option>
+                    <option value="packed">Packed</option>
+                    <option value="shipped">Shipped</option>
+                    <option value="out_for_delivery">Out for Delivery</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                  <button 
+                    onClick={() => setViewOrder(null)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-container hover:bg-outline-variant/20 text-primary transition-all"
+                  >
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                
+                {/* Info Grid */}
+                <div className="grid grid-cols-2 gap-6">
+                  {/* Customer Info */}
+                  <div className="bg-surface-container-low/50 p-4 rounded-2xl border border-outline-variant/10">
+                    <h3 className="text-sm font-bold text-primary flex items-center gap-2 mb-4 border-b border-outline-variant/10 pb-2">
+                      <span className="material-symbols-outlined text-[18px]">person</span>
+                      Customer Details
+                    </h3>
+                    <div className="space-y-2 text-xs">
+                      <p><span className="text-outline font-semibold">Name:</span> <span className="font-bold">{viewOrder.userName}</span></p>
+                      <p><span className="text-outline font-semibold">Email:</span> {viewOrder.userEmail}</p>
+                      <p><span className="text-outline font-semibold">Phone:</span> {viewOrder.address.phone}</p>
+                    </div>
+                  </div>
+
+                  {/* Order Meta */}
+                  <div className="bg-surface-container-low/50 p-4 rounded-2xl border border-outline-variant/10">
+                    <h3 className="text-sm font-bold text-primary flex items-center gap-2 mb-4 border-b border-outline-variant/10 pb-2">
+                      <span className="material-symbols-outlined text-[18px]">receipt_long</span>
+                      Order Info
+                    </h3>
+                    <div className="space-y-2 text-xs">
+                      <p><span className="text-outline font-semibold">Placed On:</span> {formatDate(viewOrder.createdAt)}</p>
+                      <p><span className="text-outline font-semibold">Delivery Slot:</span> <span className="font-bold text-secondary bg-secondary/10 px-2 py-0.5 rounded-full">{viewOrder.deliverySlot?.date} ({viewOrder.deliverySlot?.time})</span></p>
+                      <p><span className="text-outline font-semibold">Payment:</span> <span className="uppercase">{viewOrder.paymentMethod}</span></p>
+                      <p><span className="text-outline font-semibold">Payment Status:</span> <span className={`font-bold ${viewOrder.paymentStatus === 'paid' ? 'text-secondary' : 'text-error'}`}>{viewOrder.paymentStatus}</span></p>
+                      <p><span className="text-outline font-semibold">Tracking:</span> <span className="font-mono bg-surface-container px-1.5 py-0.5 rounded text-[10px]">{viewOrder.trackingNumber}</span></p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Shipping Address */}
+                <div className="bg-surface-container-low/50 p-4 rounded-2xl border border-outline-variant/10">
+                  <h3 className="text-sm font-bold text-primary flex items-center gap-2 mb-4 border-b border-outline-variant/10 pb-2">
+                    <span className="material-symbols-outlined text-[18px]">local_shipping</span>
+                    Shipping Address (Also Billing)
+                  </h3>
+                  <div className="text-xs space-y-1 text-primary font-medium">
+                    <p>{viewOrder.address.fullName}</p>
+                    <p>{viewOrder.address.street}</p>
+                    <p>{viewOrder.address.city}, {viewOrder.address.postalCode}</p>
+                    <p>{viewOrder.address.country}</p>
+                  </div>
+                </div>
+
+                {/* Ordered Items */}
+                <div>
+                  <h3 className="text-sm font-bold text-primary flex items-center gap-2 mb-4">
+                    <span className="material-symbols-outlined text-[18px]">inventory_2</span>
+                    Ordered Products ({viewOrder.items.length})
+                  </h3>
+                  <div className="border border-outline-variant/20 rounded-2xl overflow-hidden">
+                    <table className="w-full text-left text-xs font-semibold text-primary">
+                      <thead className="bg-surface-container-low/80 text-outline border-b border-outline-variant/10">
+                        <tr>
+                          <th className="p-3 w-14"></th>
+                          <th className="p-3">Product</th>
+                          <th className="p-3 text-center">Qty</th>
+                          <th className="p-3 text-right">Price</th>
+                          <th className="p-3 text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-outline-variant/10">
+                        {viewOrder.items.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-surface-container-low/10">
+                            <td className="p-3">
+                              <div className="w-10 h-10 rounded-lg overflow-hidden bg-surface-container relative">
+                                <Image src={item.product.images?.[0] || '/placeholder.png'} alt={item.product.name} fill className="object-cover" />
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <p className="font-bold">{item.product.name}</p>
+                              <p className="text-[10px] text-outline font-medium">{item.product.category || item.product.categoryId}</p>
+                            </td>
+                            <td className="p-3 text-center">x{item.quantity}</td>
+                            <td className="p-3 text-right text-outline">{formatCurrency(item.product.price)}</td>
+                            <td className="p-3 text-right font-bold text-secondary-fixed-variant">{formatCurrency(item.product.price * item.quantity)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Financial Summary */}
+                <div className="bg-surface-container-low/50 p-6 rounded-2xl border border-outline-variant/10 ml-auto w-full max-w-sm">
+                  <h3 className="text-sm font-bold text-primary mb-4 border-b border-outline-variant/10 pb-2">Order Summary</h3>
+                  <div className="space-y-3 text-xs">
+                    <div className="flex justify-between text-outline font-semibold">
+                      <span>Subtotal</span>
+                      <span className="text-primary">{formatCurrency(viewOrder.subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-outline font-semibold">
+                      <span>Shipping Fee</span>
+                      <span className="text-primary">{formatCurrency(viewOrder.shippingFee)}</span>
+                    </div>
+                    <div className="flex justify-between text-outline font-semibold">
+                      <span>Tax (GST)</span>
+                      <span className="text-primary">{formatCurrency(viewOrder.tax)}</span>
+                    </div>
+                    {viewOrder.discount > 0 && (
+                      <div className="flex justify-between text-secondary font-bold">
+                        <span>Discount ({viewOrder.couponCode})</span>
+                        <span>-{formatCurrency(viewOrder.discount)}</span>
+                      </div>
+                    )}
+                    <div className="pt-3 mt-3 border-t border-outline-variant/20 flex justify-between items-center">
+                      <span className="font-bold text-sm text-primary">Grand Total</span>
+                      <span className="font-black text-xl text-secondary-fixed-variant">{formatCurrency(viewOrder.total)}</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div className="p-4 border-t border-outline-variant/10 bg-surface-container-low/30 flex justify-between">
+                <button 
+                  onClick={() => executeDelete(viewOrder.id)}
+                  className="px-4 py-2 text-error text-xs font-bold hover:bg-error/10 rounded-xl transition-all"
+                >
+                  Delete Order
+                </button>
+                <button 
+                  onClick={() => window.print()}
+                  className="px-6 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary/90 transition-all shadow-md flex items-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-[16px]">print</span>
+                  Print Invoice
                 </button>
               </div>
 
-              <form onSubmit={handleSave} className="flex-1 overflow-y-auto space-y-6 pr-2 scrollbar-hide">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Customer Details */}
-                  <div className="space-y-4">
-                    <h4 className="font-bold text-sm text-primary border-b pb-2">Customer & Shipping Details</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] font-bold text-outline block mb-1">Full Name</label>
-                        <input required type="text" value={fName} onChange={e => setFName(e.target.value)} className="w-full text-xs p-2 bg-background rounded-xl border border-outline-variant/30 text-primary font-bold" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-outline block mb-1">Email</label>
-                        <input required type="email" value={fEmail} onChange={e => setFEmail(e.target.value)} className="w-full text-xs p-2 bg-background rounded-xl border border-outline-variant/30 text-primary font-bold" />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="text-[10px] font-bold text-outline block mb-1">Street Address</label>
-                        <input required type="text" value={fStreet} onChange={e => setFStreet(e.target.value)} className="w-full text-xs p-2 bg-background rounded-xl border border-outline-variant/30 text-primary font-bold" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-outline block mb-1">City</label>
-                        <input required type="text" value={fCity} onChange={e => setFCity(e.target.value)} className="w-full text-xs p-2 bg-background rounded-xl border border-outline-variant/30 text-primary font-bold" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-outline block mb-1">Postal Code</label>
-                        <input required type="text" value={fPostal} onChange={e => setFPostal(e.target.value)} className="w-full text-xs p-2 bg-background rounded-xl border border-outline-variant/30 text-primary font-bold" />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="text-[10px] font-bold text-outline block mb-1">Phone Number</label>
-                        <input required type="text" value={fPhone} onChange={e => setFPhone(e.target.value)} className="w-full text-xs p-2 bg-background rounded-xl border border-outline-variant/30 text-primary font-bold" />
-                      </div>
-                    </div>
-
-                    <h4 className="font-bold text-sm text-primary border-b pb-2 mt-6">Order Status</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] font-bold text-outline block mb-1">Fulfillment Status</label>
-                        <select value={fStatus} onChange={e => setFStatus(e.target.value as OrderStatus)} className="w-full text-xs p-2 bg-background rounded-xl border border-outline-variant/30 text-primary font-bold cursor-pointer">
-                          <option value="pending">Pending</option>
-                          <option value="packing">Packing</option>
-                          <option value="shipping">Shipping</option>
-                          <option value="delivered">Delivered</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-outline block mb-1">Payment Status</label>
-                        <select value={fPayment} onChange={e => setFPayment(e.target.value as 'pending'|'paid')} className="w-full text-xs p-2 bg-background rounded-xl border border-outline-variant/30 text-primary font-bold cursor-pointer">
-                          <option value="pending">Pending</option>
-                          <option value="paid">Paid</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Order Items */}
-                  <div className="space-y-4 bg-surface-container-low/30 p-4 rounded-2xl border border-outline-variant/10">
-                    <h4 className="font-bold text-sm text-primary border-b pb-2">Order Items</h4>
-                    
-                    <div className="flex gap-2">
-                      <select value={selectedProductId} onChange={e => setSelectedProductId(e.target.value)} className="flex-1 text-xs p-2 bg-background rounded-xl border border-outline-variant/30 text-primary font-bold">
-                        <option value="">Select a product to add...</option>
-                        {products.map(p => <option key={p.id} value={p.id}>{p.name} - {formatCurrency(p.price)}</option>)}
-                      </select>
-                      <button type="button" onClick={addItem} className="bg-secondary text-white px-4 rounded-xl text-xs font-bold hover:bg-secondary-fixed-variant">Add</button>
-                    </div>
-
-                    <div className="space-y-2 mt-4 max-h-[250px] overflow-y-auto">
-                      {fItems.length === 0 && <p className="text-xs text-outline text-center py-4">No items added to this order yet.</p>}
-                      {fItems.map(item => (
-                        <div key={item.product.id} className="flex items-center justify-between bg-white p-2 rounded-xl border border-outline-variant/20 shadow-sm">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg overflow-hidden bg-surface-container">
-                              <img src={item.product.images[0]} alt={item.product.name} className="w-full h-full object-cover" />
-                            </div>
-                            <div>
-                              <p className="text-xs font-bold text-primary leading-tight">{item.product.name}</p>
-                              <p className="text-[10px] font-semibold text-secondary">{formatCurrency(item.product.price)}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <input 
-                              type="number" 
-                              min="1" 
-                              value={item.quantity} 
-                              onChange={e => updateQuantity(item.product.id, parseInt(e.target.value) || 1)} 
-                              className="w-12 text-center text-xs p-1 bg-background border border-outline-variant/30 rounded"
-                            />
-                            <button type="button" onClick={() => removeItem(item.product.id)} className="text-error hover:text-error-container">
-                              <span className="material-symbols-outlined text-[18px]">close</span>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="border-t pt-3 mt-4 flex justify-between items-center text-sm">
-                      <span className="font-bold text-outline">Total Estimated Price:</span>
-                      <span className="font-black text-secondary">{formatCurrency(fItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0))}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t border-outline-variant/10 pt-4 mt-6 flex justify-end gap-3">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="border border-outline-variant/50 text-primary font-bold text-xs py-3 px-6 rounded-2xl">Cancel</button>
-                  <button type="submit" className="bg-secondary text-white font-extrabold text-xs py-3 px-8 rounded-2xl hover:bg-primary shadow-md">Save Order</button>
-                </div>
-              </form>
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }

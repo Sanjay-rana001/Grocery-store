@@ -23,6 +23,7 @@ export async function POST(req: Request) {
     });
 
     // Generate Items HTML
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const itemsHtml = order.items.map((item: any) => `
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid #e2e8f0; text-align: left;">
@@ -110,6 +111,7 @@ export async function POST(req: Request) {
     console.log('Message sent: %s', info.messageId);
     return NextResponse.json({ success: true, messageId: info.messageId });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('Error sending email:', error);
     return NextResponse.json({ error: error.message || 'Failed to send email' }, { status: 500 });

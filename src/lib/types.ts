@@ -7,10 +7,23 @@ export interface Review {
   date: string;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  isActive: boolean;
+  order: number;
+  icon: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Product {
   id: string;
   name: string;
-  category: 'Products' | 'meat' | 'dairy' | 'pantry' | 'bakery';
+  categoryId: string; // Foreign key replacing hardcoded categories. Fallback logic: check `category` if `categoryId` is missing.
+  category?: string; // Legacy fallback
   subcategory: string;
   price: number;
   originalPrice?: number; // For discount badges
@@ -56,7 +69,7 @@ export interface Coupon {
   isActive: boolean;
 }
 
-export type OrderStatus = 'pending' | 'packing' | 'shipping' | 'delivered';
+export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'packed' | 'shipped' | 'out_for_delivery' | 'delivered' | 'cancelled';
 
 export interface Order {
   id: string;
@@ -85,6 +98,7 @@ export interface User {
   role: 'customer' | 'admin';
   password?: string; // Standard mock login check
   address?: Address;
+  savedAddresses?: Address[]; // Multiple saved addresses for checkout
   profileImage?: string;
 }
 

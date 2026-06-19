@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { User, Address } from '../lib/types';
 import { auth, googleProvider, appleProvider } from '../lib/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signOut, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signOut, sendEmailVerification, sendPasswordResetEmail, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
 
 interface AuthState {
   user: User | null;
@@ -9,13 +9,14 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<boolean>;
   signup: (name: string, email: string, password: string) => Promise<boolean>;
   googleLogin: () => Promise<boolean>;
   appleLogin: () => Promise<boolean>;
   logout: () => void;
   updateAddress: (address: Address) => Promise<void>;
   updateProfile: (name: string, address: Address, profileImage?: string) => Promise<{success: boolean; message: string}>;
+  updateSavedAddresses: (savedAddresses: Address[]) => Promise<{success: boolean; message: string}>;
   resetPassword: (email: string) => Promise<{success: boolean; message: string}>;
   clearError: () => void;
 }
@@ -25,7 +26,7 @@ const isBrowser = typeof window !== 'undefined';
 const getInitialUser = (): User | null => {
   if (!isBrowser) return null;
   try {
-    const session = localStorage.getItem('freshmart_session');
+    const session = localStorage.getItem('freshmart_session') || sessionStorage.getItem('freshmart_session');
     return session ? JSON.parse(session) : null;
   } catch {
     return null;
@@ -38,9 +39,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  login: async (email, password) => {
+  login: async (email, password, rememberMe = false) => {
     set({ isLoading: true, error: null });
     try {
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
       // Admin bypass: allow the admin email to bypass email verification for testing purposes
@@ -62,9 +64,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       
       const sessionUser = await res.json();
-      if (isBrowser) localStorage.setItem('freshmart_session', JSON.stringify(sessionUser));
+      if (isBrowser) {
+        if (rememberMe) {
+          localStorage.setItem('freshmart_session', JSON.stringify(sessionUser));
+        } else {
+          sessionStorage.setItem('freshmart_session', JSON.stringify(sessionUser));
+        }
+      }
       set({ user: sessionUser, isAuthenticated: true, isLoading: false });
       return true;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       let friendlyError = 'An error occurred during login.';
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
@@ -105,6 +114,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ isLoading: false });
       return true;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       set({ error: err.message || 'An error occurred during signup.', isLoading: false });
       return false;
@@ -135,6 +145,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (isBrowser) localStorage.setItem('freshmart_session', JSON.stringify(sessionUser));
       set({ user: sessionUser, isAuthenticated: true, isLoading: false });
       return true;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       set({ error: err.message || 'Google sign-in failed.', isLoading: false });
       return false;
@@ -165,6 +176,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (isBrowser) localStorage.setItem('freshmart_session', JSON.stringify(sessionUser));
       set({ user: sessionUser, isAuthenticated: true, isLoading: false });
       return true;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       set({ error: err.message || 'Apple sign-in failed.', isLoading: false });
       return false;
@@ -215,9 +227,42 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user: updatedUser, isLoading: false });
       
       return { success: true, message: 'Profile updated successfully!' };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       set({ error: 'An error occurred during profile update.', isLoading: false });
       return { success: false, message: 'Network error occurred while updating profile.' };
+    }
+  },
+
+  updateSavedAddresses: async (savedAddresses: Address[]) => {
+    const { user } = get();
+    if (!user) return { success: false, message: 'You must be logged in' };
+    
+    set({ isLoading: true, error: null });
+
+    try {
+      const res = await fetch('/api/users/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, savedAddresses }),
+      });
+
+      if (!res.ok) {
+        set({ error: 'Failed to update saved addresses.', isLoading: false });
+        return { success: false, message: 'Failed to update addresses to the database.' };
+      }
+
+      const updatedUser = await res.json();
+      
+      // Update local storage and state
+      if (isBrowser) localStorage.setItem('freshmart_session', JSON.stringify(updatedUser));
+      set({ user: updatedUser, isLoading: false });
+      
+      return { success: true, message: 'Addresses updated successfully!' };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
+      set({ error: 'An error occurred during address update.', isLoading: false });
+      return { success: false, message: 'Network error occurred while updating addresses.' };
     }
   },
 
@@ -225,6 +270,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await sendPasswordResetEmail(auth, email);
       return { success: true, message: 'Password reset email sent! Check your inbox.' };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       return { success: false, message: error.message || 'Failed to send password reset email.' };
     }

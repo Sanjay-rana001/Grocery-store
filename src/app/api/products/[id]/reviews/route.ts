@@ -44,3 +44,29 @@ export async function PATCH(
     return NextResponse.json({ error: 'Failed to update review' }, { status: 400 });
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> | { id: string } }
+) {
+  try {
+    const resolvedParams = await params;
+    const { id: productId } = resolvedParams;
+    const { searchParams } = new URL(request.url);
+    
+    const reviewId = searchParams.get('reviewId');
+    const userId = searchParams.get('userId');
+    
+    if (!reviewId || !userId) {
+      return NextResponse.json({ error: 'Missing required query parameters' }, { status: 400 });
+    }
+
+    const success = await firebaseServices.deleteProductReview(productId, reviewId, userId);
+    if (!success) {
+      return NextResponse.json({ error: 'Failed to delete review or unauthorized' }, { status: 403 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to delete review' }, { status: 400 });
+  }
+}

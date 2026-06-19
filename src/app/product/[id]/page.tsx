@@ -1,9 +1,11 @@
 'use client';
 
+import { createPortal } from 'react-dom';
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import MobileNav from '@/components/MobileNav';
@@ -26,6 +28,7 @@ export default function ProductDetailPage() {
   const { toggleWishlist, isInWishlist } = useWishlistStore();
   const addReview = useAdminStore(state => state.addReview);
   const editReview = useAdminStore(state => state.editReview);
+  const deleteReview = useAdminStore(state => state.deleteReview);
 
   // States
   const [product, setProduct] = useState<Product | null>(null);
@@ -37,6 +40,7 @@ export default function ProductDetailPage() {
   const [reviewError, setReviewError] = useState('');
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [flyingItems, setFlyingItems] = useState<{ id: number, startX: number, startY: number, endX: number, endY: number, url: string }[]>([]);
 
   // Fetch product on mount or id change
   useEffect(() => {
@@ -66,8 +70,8 @@ export default function ProductDetailPage() {
       try {
         const all = await getProducts();
         const filtered = all
-          .filter(p => p.category === product.category && p.id !== product.id)
-          .slice(0, 4);
+          .filter(p => (p.categoryId === product.categoryId || p.category === product.category) && p.id !== product.id)
+          .slice(0, 10);
         setRelatedProducts(filtered);
       } catch (error) {
         console.error('Failed to load related products:', error);
@@ -109,6 +113,21 @@ export default function ProductDetailPage() {
       setEditingReviewId(null);
     } else {
       setReviewError('Failed to save your review. Please try again.');
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!product || !user) return;
+    if (confirm("Are you sure you want to delete this review?")) {
+      const success = await deleteReview(product.id, reviewId, user.id);
+      if (success) {
+        const updatedProd = await getProductById(product.id);
+        if (updatedProd) {
+          setProduct(updatedProd);
+        }
+      } else {
+        alert("Failed to delete review. Please try again.");
+      }
     }
   };
 
@@ -161,7 +180,7 @@ export default function ProductDetailPage() {
         <div className="flex items-center gap-2 text-xs font-semibold text-outline mb-6">
           <button onClick={() => router.push('/')} className="hover:text-secondary cursor-pointer">Shop</button>
           <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-          <span className="capitalize">{product.category}</span>
+          <span className="capitalize">{product.categoryId || product.category}</span>
           <span className="material-symbols-outlined text-[14px]">chevron_right</span>
           <span className="text-primary truncate max-w-[150px]">{product.name}</span>
         </div>
@@ -255,7 +274,7 @@ export default function ProductDetailPage() {
                 <button
                   onClick={() => toggleWishlist(product)}
                   className={`w-11 h-11 rounded-full flex items-center justify-center bg-background shadow-sm border border-outline-variant/10 cursor-pointer transition-colors active:scale-90 ${
-                    wishlisted ? 'text-error hover:bg-error/5' : 'text-on-surface-variant/60 hover:text-error hover:bg-error/5'
+                    wishlisted ? 'text-pink-600 hover:bg-pink-50' : 'text-on-surface-variant/60 hover:text-pink-600 hover:bg-pink-50'
                   }`}
                 >
                   <span
@@ -370,8 +389,29 @@ export default function ProductDetailPage() {
 
               <button
                 disabled={product.stock === 0}
-                onClick={() => {
+                onClick={(e) => {
                   addItem(product, quantity);
+                  
+                  const target = e.currentTarget as HTMLElement;
+                  const rect = target.getBoundingClientRect();
+                  const itemId = Date.now();
+                  
+                  const cartIcon = document.getElementById('navbar-cart-button');
+                  const cartRect = cartIcon?.getBoundingClientRect();
+                  
+                  setFlyingItems(prev => [...prev, {
+                    id: itemId,
+                    startX: rect.left + rect.width / 2 - 20,
+                    startY: rect.top + rect.height / 2 - 20,
+                    endX: cartRect ? cartRect.left + cartRect.width / 2 - 10 : window.innerWidth - 50,
+                    endY: cartRect ? cartRect.top + cartRect.height / 2 - 10 : 20,
+                    url: product.images[activeImageIndex] || product.images[0]
+                  }]);
+
+                  setTimeout(() => {
+                    setFlyingItems(prev => prev.filter(item => item.id !== itemId));
+                  }, 800);
+                  
                   setQuantity(1);
                 }}
                 className="flex-1 bg-secondary text-white font-bold py-3.5 px-6 rounded-2xl hover:bg-primary transition-all active:scale-95 shadow-md flex items-center justify-center gap-2 disabled:opacity-35 cursor-pointer"
@@ -406,18 +446,27 @@ export default function ProductDetailPage() {
                   {(product.reviews || []).map((rev) => (
                     <div key={rev.id} className="bg-background/45 p-5 rounded-2xl border border-outline-variant/10 shadow-sm relative">
                       {user && user.id === rev.userId && (
-                        <button
-                          onClick={() => {
-                            setEditingReviewId(rev.id);
-                            setReviewRating(rev.rating);
-                            setReviewComment(rev.comment);
-                            document.getElementById('review-form-section')?.scrollIntoView({ behavior: 'smooth' });
-                          }}
-                          className="absolute top-4 right-4 text-xs font-bold text-secondary hover:underline cursor-pointer flex items-center gap-1"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">edit</span>
-                          Edit
-                        </button>
+                        <div className="absolute top-4 right-4 flex items-center gap-3">
+                          <button
+                            onClick={() => {
+                              setEditingReviewId(rev.id);
+                              setReviewRating(rev.rating);
+                              setReviewComment(rev.comment);
+                              document.getElementById('review-form-section')?.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                            className="text-[11px] font-bold text-secondary hover:text-primary transition-colors cursor-pointer flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">edit</span>
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteReview(rev.id)}
+                            className="text-[11px] font-bold text-error/80 hover:text-error transition-colors cursor-pointer flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">delete</span>
+                            Delete
+                          </button>
+                        </div>
                       )}
                       <div className="flex justify-between items-start mb-2 gap-2 pr-12">
                         <div>
@@ -532,26 +581,89 @@ export default function ProductDetailPage() {
 
         {/* Related Products Section */}
         {relatedProducts.length > 0 && (
-          <section className="mt-16">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="font-display text-headline-md font-bold text-primary">
-                Related Premium Products
-              </h2>
+          <section className="mt-16 border-t border-outline-variant/10 pt-12 pb-8">
+            <div className="flex justify-between items-end mb-8">
+              <div>
+                <h2 className="font-display text-headline-md font-bold text-primary">
+                  Customers Also Bought
+                </h2>
+                <p className="text-on-surface-variant text-sm mt-1">Discover other premium products in this category.</p>
+              </div>
               <button
-                onClick={() => router.push(`/?category=${product.category}`)}
-                className="text-xs font-bold text-secondary hover:underline cursor-pointer"
+                onClick={() => router.push(`/?category=${product.categoryId || product.category}`)}
+                className="text-xs font-bold text-secondary hover:underline cursor-pointer flex items-center gap-1 bg-secondary/5 px-4 py-2 rounded-full transition-colors hover:bg-secondary/10 hidden sm:flex"
               >
                 See all related
+                <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
               </button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-              {relatedProducts.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
+            
+            {/* Carousel Container */}
+            <div className="relative -mx-margin-mobile px-margin-mobile lg:-mx-margin-desktop lg:px-margin-desktop overflow-hidden">
+              <div className="flex gap-4 lg:gap-6 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-8">
+                {relatedProducts.map((p) => (
+                  <div key={p.id} className="snap-start flex-shrink-0 w-[260px] md:w-[280px]">
+                    <ProductCard product={p} />
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
         )}
       </main>
+
+      {/* Flying Animation Images */}
+      {typeof document !== 'undefined' && createPortal(
+        flyingItems.map(item => (
+          <motion.img
+            key={item.id}
+            src={item.url}
+            alt=""
+            className="fixed top-0 left-0 z-[99999] object-cover rounded-full shadow-2xl pointer-events-none border-2 border-secondary"
+            initial={{ 
+              x: item.startX, 
+              y: item.startY, 
+              width: 50, 
+              height: 50, 
+              opacity: 1, 
+              scale: 1 
+            }}
+            animate={{ 
+              x: item.endX, 
+              y: item.endY, 
+              width: 24, 
+              height: 24, 
+              opacity: 0.1, 
+              scale: 0.5 
+            }}
+            transition={{ 
+              duration: 0.8, 
+              ease: [0.25, 0.1, 0.25, 1.0]
+            }}
+          />
+        )),
+        document.body
+      )}
+
+      {/* Added to Cart Pop Text */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {flyingItems.map(item => (
+            <motion.div
+              key={`text-${item.id}`}
+              initial={{ opacity: 0, y: item.startY - 10, x: item.startX - 20, scale: 0.5 }}
+              animate={{ opacity: 1, y: item.startY - 50, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.7, ease: "easeOut" }}
+              className="fixed top-0 left-0 z-[99999] bg-secondary text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md pointer-events-none whitespace-nowrap flex items-center gap-1"
+            >
+              <span className="material-symbols-outlined text-[12px]">check_circle</span>
+              Added
+            </motion.div>
+          ))}
+        </AnimatePresence>,
+        document.body
+      )}
 
       <MobileNav />
       <Footer />

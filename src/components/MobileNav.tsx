@@ -9,12 +9,13 @@ import { useAuthStore } from '../store/useAuthStore';
 export default function MobileNav() {
   const router = useRouter();
   const pathname = usePathname();
-  const { setCartOpen } = useUiStore();
+  const { setCartOpen, setMobileSearchOpen } = useUiStore();
   const { getTotals } = useCartStore();
   const { isAuthenticated, user } = useAuthStore();
   const [mounted, setMounted] = useState(false);
   
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
   
@@ -45,11 +46,11 @@ export default function MobileNav() {
 
       {/* Search / Browse */}
       <button 
-        onClick={() => router.push('/')}
-        className={`flex flex-col items-center justify-center active:scale-95 transition-all duration-150 cursor-pointer ${pathname === '/browse' ? 'text-secondary font-bold' : 'text-on-surface-variant/80'}`}
+        onClick={() => setMobileSearchOpen(true)}
+        className="flex flex-col items-center justify-center active:scale-95 transition-all duration-150 cursor-pointer text-on-surface-variant/80"
       >
         <span className="material-symbols-outlined">search</span>
-        <span className="text-[10px] mt-0.5 font-sans">Browse</span>
+        <span className="text-[10px] mt-0.5 font-sans">Search</span>
       </button>
 
       {/* Cart Drawer Toggle */}
