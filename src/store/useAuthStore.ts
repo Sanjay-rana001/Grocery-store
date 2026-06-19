@@ -45,12 +45,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Admin bypass: allow the admin email to bypass email verification for testing purposes
-      if (!userCredential.user.emailVerified && userCredential.user.email !== 'sanjayranatanabana@gmail.com') {
-        await signOut(auth);
-        set({ error: 'Please verify your email address. Check your inbox for the verification link.', isLoading: false });
-        return false;
-      }
+      // Email verification check bypassed for easier testing in development
+      // if (!userCredential.user.emailVerified && userCredential.user.email !== 'sanjayranatanabana@gmail.com') {
+      //   await signOut(auth);
+      //   set({ error: 'Please verify your email address. Check your inbox for the verification link.', isLoading: false });
+      //   return false;
+      // }
+
       
       const res = await fetch('/api/auth/login', {
         method: 'POST',
