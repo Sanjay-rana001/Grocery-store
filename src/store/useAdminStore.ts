@@ -15,6 +15,7 @@ interface AdminState {
   loadAllData: () => Promise<void>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<boolean>;
   updateOrder: (orderId: string, orderData: Partial<Order>) => Promise<boolean>;
+  deleteOrder: (orderId: string) => Promise<boolean>;
   initializeRealtimeOrders: () => () => void;
   createOrder: (orderData: Omit<Order, 'id' | 'createdAt' | 'status' | 'trackingNumber' | 'paymentStatus'>) => Promise<Order | null>;
   saveCategory: (category: Category) => Promise<void>;
