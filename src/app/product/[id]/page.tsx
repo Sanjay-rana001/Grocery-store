@@ -190,7 +190,7 @@ export default function ProductDetailPage() {
           
           {/* Gallery Component */}
           <div className="flex flex-col gap-4">
-            <div className="relative h-72 sm:h-96 md:h-[450px] bg-surface-container-low rounded-[24px] overflow-hidden border border-outline-variant/10">
+            <div className="relative h-64 sm:h-96 md:h-[450px] bg-surface-container-low rounded-[24px] overflow-hidden border border-outline-variant/10">
               <Image
                 src={product.images[activeImageIndex] || product.images[0]}
                 alt={product.name}
@@ -268,7 +268,7 @@ export default function ProductDetailPage() {
 
               {/* Title & Wishlist */}
               <div className="flex justify-between items-start gap-4 mb-2">
-                <h1 className="font-display text-headline-lg sm:text-[36px] font-bold text-primary leading-tight">
+                <h1 className="font-display text-2xl sm:text-3xl md:text-[36px] font-bold text-primary leading-tight">
                   {product.name}
                 </h1>
                 <button

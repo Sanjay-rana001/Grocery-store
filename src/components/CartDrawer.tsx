@@ -48,7 +48,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             {/* Header */}
             <div className="p-6 border-b border-outline-variant/10 flex justify-between items-center bg-surface-container-low/40">
               <div>
-                <h3 className="font-display text-headline-md text-primary">Your Cart</h3>
+                <h3 className="font-display text-2xl sm:text-headline-md text-primary">Your Cart</h3>
                 <p className="text-label-sm text-outline mt-0.5">{itemsCount} {itemsCount === 1 ? 'item' : 'items'} selected</p>
               </div>
               <button 
@@ -67,8 +67,8 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                     <span className="material-symbols-outlined text-[48px]">shopping_basket</span>
                   </div>
                   <div>
-                    <h4 className="font-display text-headline-md text-primary">Your basket is empty</h4>
-                    <p className="text-body-md text-outline mt-2 max-w-xs mx-auto">
+                    <h4 className="font-display text-2xl sm:text-headline-md text-primary">Your basket is empty</h4>
+                    <p className="text-sm sm:text-body-md text-outline mt-2 max-w-xs mx-auto">
                       Fill it with fresh, organic Products sourced directly from local New Zealand farmers.
                     </p>
                   </div>
@@ -138,7 +138,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         </div>
 
                         {/* Price */}
-                        <span className="font-display text-headline-sm text-primary font-bold">
+                        <span className="font-display text-lg sm:text-headline-sm text-primary font-bold">
                           {formatCurrency(item.product.price * item.quantity)}
                         </span>
                       </div>
@@ -220,8 +220,8 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
                 {/* Grand total */}
                 <div className="flex justify-between items-center py-1">
-                  <span className="font-display text-headline-md text-primary font-bold">Total (NZD)</span>
-                  <span className="font-display text-headline-lg text-primary font-bold">
+                  <span className="font-display text-xl sm:text-headline-md text-primary font-bold">Total (NZD)</span>
+                  <span className="font-display text-2xl sm:text-headline-lg text-primary font-bold">
                     {formatCurrency(total)}
                   </span>
                 </div>
