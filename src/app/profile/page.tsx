@@ -218,7 +218,7 @@ export default function ProfilePage() {
 
   if (!mounted) return null;
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa] text-primary">
         <div className="flex flex-col items-center gap-4">
