@@ -243,19 +243,6 @@ export default function LoginPage() {
             <span>Sign in with Google</span>
           </button>
 
-          {/* Apple Sign In */}
-          <button
-            type="button"
-            onClick={async () => {
-              const success = await appleLogin();
-              if (success) router.push('/');
-            }}
-            disabled={isLoading}
-            className="w-full bg-black hover:bg-gray-900 text-white font-bold py-3.5 px-6 rounded-2xl transition-all active:scale-95 shadow-sm border border-black flex items-center justify-center gap-2 disabled:opacity-40 cursor-pointer mt-3"
-          >
-            <img src="https://www.svgrepo.com/show/511330/apple-173.svg" alt="Apple" className="w-5 h-5 filter invert" />
-            <span>Sign in with Apple</span>
-          </button>
         </form>
 
         {/* Footer info */}
